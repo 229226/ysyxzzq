@@ -19,13 +19,15 @@
 #include <readline/history.h>
 #include "sdb.h"
 #include <utils.h>
+#include <memory/paddr.h>
 
 #include <errno.h>
 #include <limits.h>
 
 bool parse_unsigned_long(const char *str, unsigned long *out) {
   char *endptr;
-  unsigned long num = strtoul(str, &endptr, 10); // 10 表示十进制
+  errno = 0;
+  unsigned long num = strtoul(str, &endptr, 0);
 
   // 检查转换是否失败（无有效数字）
   if (str == endptr) {
@@ -91,6 +93,10 @@ static int cmd_help(char *args);
 
 static int cmd_si(char *args);
 
+static int cmd_info(char *args);
+
+static int cmd_x(char *args);
+
 static struct
 {
   const char *name;
@@ -101,6 +107,8 @@ static struct
     {"c", "Continue the execution of the program", cmd_c},
     {"q", "Exit NEMU", cmd_q},
     {"si", "Execute N instructions,the default of N is 1", cmd_si},
+    {"info", "Dispaly the value of regs or the information of watches by args r/w", cmd_info},
+    {"x", "Scan N*4byte memory",cmd_x},
     /* TODO: Add more commands */
 
 };
@@ -151,6 +159,51 @@ static int cmd_si(char *args)
     cpu_exec(num);
   }else{
     printf("Wrong args input of \"si\"\n");
+  }
+
+  return 0;
+}
+
+static int cmd_info(char *args){
+  char *arg = strtok(NULL, " ");
+
+  if(arg == NULL){
+    printf("Need a arg(r/w) of info\n");
+  }
+  else if(strcmp(arg,"r") == 0){
+    isa_reg_display();
+  }
+  else if(strcmp(arg,"w") == 0){
+
+  }
+  else{
+    printf("Wrong arg of the command info\n");
+  }
+
+  return 0;
+}
+
+static int cmd_x(char *args){
+  char *arg = strtok(NULL, " ");
+  uint64_t num = 0;
+  bool matched = parse_unsigned_long(arg,&num);
+
+  if(matched){
+    if(num == 0){
+      printf("The number should be greater than zero\n");
+    }else{
+      uint64_t expr = 0;
+      arg = strtok(NULL, " ");
+      matched = parse_unsigned_long(arg,&expr);
+      if(matched){
+        for(int i = 0;i<num;i++){
+          int addr = expr + 4*i;
+          printf("0x%x 0x%08x\n",addr,paddr_read(addr,4));
+        }
+      }else{
+        printf("Wrong expression or address\n");
+      }
+    }
   }
 
   return 0;
