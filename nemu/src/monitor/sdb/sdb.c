@@ -17,7 +17,7 @@
 #include <cpu/cpu.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include "sdb.h"
+#include <monitor/sdb.h>
 #include <utils.h>
 #include <memory/paddr.h>
 
@@ -82,20 +82,18 @@ static int cmd_c(char *args)
   cpu_exec(-1);
   return 0;
 }
-
 static int cmd_q(char *args)
 {
   nemu_state.state = NEMU_QUIT;
   return -1;
 }
-
 static int cmd_help(char *args);
-
 static int cmd_si(char *args);
-
 static int cmd_info(char *args);
-
 static int cmd_x(char *args);
+static int cmd_w(char *args);
+static int cmd_p(char *args);
+static int cmd_d(char *args);
 
 static struct
 {
@@ -110,7 +108,9 @@ static struct
     {"info", "Dispaly the value of regs or the information of watches by args r/w", cmd_info},
     {"x", "Scan N*4byte memory",cmd_x},
     /* TODO: Add more commands */
-
+    {"w", "Add watchpoint",cmd_w},
+    {"p", "Calculate the expresion what you input",cmd_p},
+    {"d", "Delete the watchpoint of the number N",cmd_d}
 };
 
 #define NR_CMD ARRLEN(cmd_table)
@@ -168,13 +168,13 @@ static int cmd_info(char *args){
   char *arg = strtok(NULL, " ");
 
   if(arg == NULL){
-    printf("Need a arg(r/w) of info\n");
+    printf("Need a arg(r/w) for info\n");
   }
   else if(strcmp(arg,"r") == 0){
     isa_reg_display();
   }
   else if(strcmp(arg,"w") == 0){
-
+    print_wp();
   }
   else{
     printf("Wrong arg of the command info\n");
@@ -184,7 +184,14 @@ static int cmd_info(char *args){
 }
 
 static int cmd_x(char *args){
+  char *args_end = args + strlen(args);
   char *arg = strtok(NULL, " ");
+  char *expr_str = args + strlen(arg)+1;
+  if(expr_str >= args_end){
+    printf("Don't have enough args\n");
+    return 1;
+  }
+
   uint64_t num = 0;
   bool matched = parse_unsigned_long(arg,&num);
 
@@ -192,12 +199,11 @@ static int cmd_x(char *args){
     if(num == 0){
       printf("The number should be greater than zero\n");
     }else{
-      uint64_t expr = 0;
-      arg = strtok(NULL, " ");
-      matched = parse_unsigned_long(arg,&expr);
-      if(matched){
-        for(int i = 0;i<num;i++){
-          int addr = expr + 4*i;
+      bool success = true;
+      uint32_t exp_rs = expr(expr_str,&success);
+      if(success){
+        for(uint32_t i = 0;i<num;i++){
+          paddr_t addr = exp_rs + 4*i;
           printf("0x%x 0x%08x\n",addr,paddr_read(addr,4));
         }
       }else{
@@ -207,6 +213,38 @@ static int cmd_x(char *args){
   }
 
   return 0;
+}
+
+static int cmd_w(char *args){
+  char *arg = strtok(NULL, " ");
+  if(new_wp(arg)){
+    return 0;
+  }else{
+    return 1;
+  }
+}
+
+static int cmd_p(char *args){
+  bool success;
+  uint32_t ret = expr(args,&success);
+  if(success){
+    printf("%s =\n%u\n",args,ret);
+    return 0;
+  }else{
+    printf("Failed to caculate the expression\n");
+    return 1;
+  }
+}
+
+static int cmd_d(char *args){
+  char *arg = strtok(NULL, " "); 
+  int N;
+  sscanf(arg,"%d",&N);
+  if(free_wp(N)){
+    return 0;
+  }else{
+    return 1;
+  }
 }
 
 void sdb_set_batch_mode()

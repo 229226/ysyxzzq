@@ -19,6 +19,8 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
+#include <regex.h>
 
 // this should be enough
 static char buf[65536] = {};
@@ -31,8 +33,98 @@ static char *code_format =
 "  return 0; "
 "}";
 
-static void gen_rand_expr() {
-  buf[0] = '\0';
+static int index_buf = 0;
+static char op[4] = {'+','-','*','/'};
+
+static int inc_index(int n){
+  if((index_buf + n)>(65536-2)){
+    printf("Reach the maximum of the buf in gen-expr\n");
+    return 1;
+  }else{
+    index_buf += n;
+  }
+  return 0;
+}
+static int choose(int n){
+  return rand()%n;
+}
+static int gen_num(){
+  uint32_t num = (uint32_t)rand();
+  char str[20];
+  sprintf(str,"%d",num);
+  int length = strlen(str);
+  strcpy(buf+index_buf,str);
+  if(inc_index(length)){
+    return 1;
+  }
+  return 0;
+}
+static int gen(char ch){
+  buf[index_buf] = ch;
+  if(inc_index(1)) return 1;
+  return 0;
+}
+static int gen_rand_op(){
+  buf[index_buf] = op[choose(4)];
+  if(inc_index(1)) return 1;
+  return 0;
+}
+static int gen_rand_expr() {
+  switch (choose(6)) {
+    case 0: {
+      if(gen_num()) return 1; 
+      break;
+    }
+    case 1: {
+      if(gen('(')) return 1;
+      if(gen_rand_expr()) return 1;
+      if(gen(')')) return 1;
+      break;
+    }
+    case 2: {
+      if(gen_rand_expr()) return 1;
+      if(gen(' ')) return 1;
+      break;
+    }
+    case 3: {
+      if(gen(' ')) return 1;
+      if(gen_rand_expr()) return 1;
+      break;
+    }
+    case 4:{
+      if(gen('(')) return 1;
+      if(gen('-')) return 1;
+      if(gen_rand_expr()) return 1;
+      if(gen(')')) return 1;
+      break;
+    }
+    default:{
+      if(gen_rand_expr()) return 1;
+      if(gen_rand_op()) return 1;
+      if(gen_rand_expr()) return 1;
+      break;
+    }
+  }
+  buf[index_buf+1] = '\0';
+  return 0;
+}
+static int is_divied_zero(bool *y_or_n){
+  regex_t regex;
+  int ret;
+  
+  ret = regcomp(&regex,".*/[ ()]*[0]+[^0-9]*",REG_EXTENDED);
+  if (ret) {
+    printf("无法编译正则表达式\n");
+    return 1;
+  }
+  ret = regexec(&regex,buf,0,NULL,0);
+  if (!ret){
+    *y_or_n = true;
+  }else{
+    *y_or_n = false;
+  }
+  regfree(&regex);
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -44,8 +136,20 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
-    gen_rand_expr();
-
+    index_buf = 0;
+    if(gen_rand_expr()){
+      continue;
+    }
+    
+    bool y_or_n;
+    if(is_divied_zero(&y_or_n)){
+      return 1;
+    }else{
+      if(y_or_n){
+        continue;
+      }
+    }
+    
     sprintf(code_buf, code_format, buf);
 
     FILE *fp = fopen("/tmp/.code.c", "w");
@@ -65,5 +169,4 @@ int main(int argc, char *argv[]) {
 
     printf("%u %s\n", result, buf);
   }
-  return 0;
 }

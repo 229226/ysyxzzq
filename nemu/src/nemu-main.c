@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <common.h>
+#include <monitor/sdb.h>
 
 void init_monitor(int, char *[]);
 void am_init_monitor();
@@ -31,5 +32,35 @@ int main(int argc, char *argv[]) {
   /* Start engine. */
   engine_start();
 
+  FILE *file = fopen("/home/zzq/ysyx-workbench/nemu/tools/gen-expr/input","r");
+  if(file == NULL){
+    printf("Can't open the file input\n");
+    return 1;
+  }
+
+  char buffer[70000];
+  uint32_t result;
+  char e[65536];
+  bool success = true;
+  uint32_t ret;
+
+  int count = 1;
+  while(fgets(buffer,70000,file) != NULL){
+    success = true;
+    sscanf(buffer,"%u %[^\n]",&result,e);
+    ret = expr(e,&success);
+    printf("%3d: ",count);
+    if (!success){
+      printf("Fail to calculate the expression by expr()\n");
+    }else{
+      if(result == ret){
+        printf(" true  ");
+      }else{
+        printf(" false ");
+      }
+      printf("%u %u\n" ,result,ret);
+    }
+    count++;
+  }
   return is_exit_status_bad();
 }

@@ -18,6 +18,11 @@
 
 #include <common.h>
 
+bool new_wp(char *wt);
+bool free_wp(int N);
+void print_wp();
+bool is_wp_diff();
+
 word_t expr(char *e, bool *success);
 
 #endif
