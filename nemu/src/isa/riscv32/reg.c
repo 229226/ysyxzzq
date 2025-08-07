@@ -34,12 +34,13 @@ void isa_reg_display() {
 word_t isa_reg_str2val(const char *s, bool *success) {
   int length_of_regs = sizeof(regs)/sizeof(regs[0]);
 
-  if(strcmp("pc",s)==1){
+  if(strcmp("$pc",s)==0){
     return cpu.pc;
   }
 
   for(int i = 0;i<length_of_regs;i++){
-    if(strcmp(regs[i],s) == 1){
+    char tmp[16]="$"; 
+    if(strcmp(strcat(tmp,regs[i]),s) == 0){
       return cpu.gpr[i];
     }
   }
