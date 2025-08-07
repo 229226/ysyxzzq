@@ -29,17 +29,17 @@ enum
   TK_NUMB_HEX,
   TK_NUMB_DEC,
 
-  TK_AND,
-  TK_EQ,
-  TK_NEQ,
-  TK_PLUS,
-  TK_SUB,
-  TK_MUL,
-  TK_DIV,
-  TK_DERE,
-  TK_NEG,
-  TK_LBRA,
-  TK_RBRA,
+  TK_AND, //与
+  TK_EQ,  //等于
+  TK_NEQ, //不等于
+  TK_PLUS,  //加
+  TK_SUB, //减
+  TK_MUL, //乘
+  TK_DIV, //除
+  TK_DERE,  //指针解
+  TK_NEG, //负号
+  TK_LBRA,  //左括号
+  TK_RBRA,  //右括号
 };
 
 static struct rule
@@ -94,6 +94,7 @@ void init_regex()
 typedef struct token
 {
   int type;
+  int priority;
   char str[32];
 } Token;
 
@@ -196,7 +197,6 @@ static bool make_token(char *e, bool *success)
       return false;
     }
   }
-  nr_token--;
   return true;
 }
 
@@ -247,13 +247,13 @@ static int find_top(int p, int q, bool *success)
       par_unmatched--;
       continue;
     }
-    else if ((par_unmatched == 0) && (tokens[i].type > TK_NUMB_DEC))
+    else if ((par_unmatched == 0) && (tokens[i].priority < 16))
     {
       if (top == -1)
       {
         top = i;
       }
-      else if (tokens[i].type <= tokens[top].type)
+      else if (tokens[i].priority >= tokens[top].priority)
       {
         top = i;
       }
@@ -276,6 +276,7 @@ static uint32_t eval_expr(int p, int q, bool *success)
 {
   if (p > q)
   {
+    printf("The argument of eval_expr p > q\n");
     *success = false;
     return 0;
   }
@@ -310,6 +311,7 @@ static uint32_t eval_expr(int p, int q, bool *success)
     }
     default:
     {
+      printf("Can't find the type of p == q in eval_expr\n");
       *success = false;
       return 0;
     }
@@ -337,10 +339,10 @@ static uint32_t eval_expr(int p, int q, bool *success)
       return 0;
       switch (tokens[top].type)
       {
-      case TK_RBRA:
+      case TK_DERE:
         return (uint32_t)paddr_read(val,4);
       case TK_NEG:
-        return (uint32_t)-val;
+        return -(uint32_t)val;
       default:
         break;
       }
@@ -377,23 +379,24 @@ static uint32_t eval_expr(int p, int q, bool *success)
     }
     case TK_MUL:
     {
-      return val1 * val2;
+      return ((uint32_t)val1 * (u_int32_t)val2);
     }
     case TK_DIV:
     {
       if (val2 == 0)
       {
-        printf("The divisor can't be zero\n");
+        printf("The divisor can't be zero,the val1 = %u\n",val1);
         *success = false;
         return 0;
       }
       else
       {
-        return (uint32_t)(val1 / val2);
+        return ((uint32_t)val1 / (uint32_t)val2);
       }
     }
     default:
     {
+      printf("Can't find the type of tokens in eval_expr\n");
       *success = false;
       return 0;
     }
@@ -405,13 +408,57 @@ static void make_pretoken(bool *success){
   int i;
   for (i = 0; i < nr_token; i ++) {
     if (tokens[i].type == TK_MUL && (i == 0 || ((tokens[i - 1].type>TK_NUMB_DEC)&&(tokens[i-1].type != TK_RBRA))) ) {
-      tokens[i].type = TK_DERE;
+      tokens[i].type = TK_DERE; //当运算符为 * 且前一个为运算符的时候并且不为右括号的时候将其变为 解指针
     }
     if (tokens[i].type == TK_SUB && (i == 0 || ((tokens[i - 1].type>TK_NUMB_DEC)&&(tokens[i-1].type != TK_RBRA))) ) {
       tokens[i].type = TK_NEG;
     }
   }
 }
+
+//计算运算符的有限级，数字越小优先级越高
+static void make_priority(bool *success){
+  for (int i = 0; i < nr_token; i++)
+  {
+    switch (tokens[i].type)
+    {
+    case  TK_LBRA:
+    case  TK_RBRA:
+      tokens[i].priority = 1;
+      break;
+    case  TK_DERE:  
+    case  TK_NEG: 
+      tokens[i].priority = 2;
+      break;
+    case  TK_MUL: 
+    case  TK_DIV: 
+      tokens[i].priority = 3;
+      break;
+    case  TK_SUB: 
+    case  TK_PLUS: 
+      tokens[i].priority = 4;
+      break;
+    case  TK_EQ: 
+    case  TK_NEQ: 
+      tokens[i].priority = 7;
+      break;
+    case  TK_AND:  
+      tokens[i].priority = 8;
+      break;
+    case  TK_NOTYPE:
+    case  TK_REG:
+    case  TK_NUMB_HEX:
+    case  TK_NUMB_DEC:
+      tokens[i].priority = 16;
+      break;
+    default:
+      printf("Can't get the priority\n");
+      *success = false;
+      break;
+    }
+  }
+}
+
 word_t expr(char *e, bool *success)
 {
   make_token(e, success);
@@ -419,9 +466,10 @@ word_t expr(char *e, bool *success)
     return 0;
 
   make_pretoken(success);
+  make_priority(success);
 
   /* TODO: Insert codes to evaluate the expression. */
-  word_t ret = eval_expr(0, nr_token, success);
+  word_t ret = eval_expr(0, nr_token-1, success);
   if (*success)
     return ret;
   else

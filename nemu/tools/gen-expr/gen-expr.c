@@ -19,8 +19,6 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
-#include <stdbool.h>
-#include <regex.h>
 
 // this should be enough
 static char buf[65536] = {};
@@ -38,7 +36,7 @@ static char op[4] = {'+','-','*','/'};
 
 static int inc_index(int n){
   if((index_buf + n)>(65536-2)){
-    printf("Reach the maximum of the buf in gen-expr\n");
+    //printf("Reach the maximum of the buf in gen-expr\n");
     return 1;
   }else{
     index_buf += n;
@@ -50,8 +48,8 @@ static int choose(int n){
 }
 static int gen_num(){
   uint32_t num = (uint32_t)rand();
-  char str[20];
-  sprintf(str,"%d",num);
+  char str[21];
+  sprintf(str,"%du",num);
   int length = strlen(str);
   strcpy(buf+index_buf,str);
   if(inc_index(length)){
@@ -108,23 +106,12 @@ static int gen_rand_expr() {
   buf[index_buf+1] = '\0';
   return 0;
 }
-static int is_divied_zero(bool *y_or_n){
-  regex_t regex;
-  int ret;
-  
-  ret = regcomp(&regex,".*/[ ()]*[0]+[^0-9]*",REG_EXTENDED);
-  if (ret) {
-    printf("无法编译正则表达式\n");
-    return 1;
+static void replace_u(char *data,int length){
+  for(int i = 0;i<length;i++){
+    if(data[i]=='u'){
+      data[i]=' ';
+    }    
   }
-  ret = regexec(&regex,buf,0,NULL,0);
-  if (!ret){
-    *y_or_n = true;
-  }else{
-    *y_or_n = false;
-  }
-  regfree(&regex);
-  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -134,20 +121,11 @@ int main(int argc, char *argv[]) {
   if (argc > 1) {
     sscanf(argv[1], "%d", &loop);
   }
-  int i;
-  for (i = 0; i < loop; i ++) {
+  int count = 0;
+  while(count < loop){
     index_buf = 0;
     if(gen_rand_expr()){
       continue;
-    }
-    
-    bool y_or_n;
-    if(is_divied_zero(&y_or_n)){
-      return 1;
-    }else{
-      if(y_or_n){
-        continue;
-      }
     }
     
     sprintf(code_buf, code_format, buf);
@@ -157,16 +135,21 @@ int main(int argc, char *argv[]) {
     fputs(code_buf, fp);
     fclose(fp);
 
-    int ret = system("gcc /tmp/.code.c -o /tmp/.expr");
+    int ret = system("gcc -Werror=div-by-zero /tmp/.code.c -o /tmp/.expr");
     if (ret != 0) continue;
 
+    //使用popen执行了指令并返回一个*FILE
     fp = popen("/tmp/.expr", "r");
     assert(fp != NULL);
 
+    //再使用fscanf读取*FILE的内容
     int result;
     ret = fscanf(fp, "%d", &result);
     pclose(fp);
 
+    replace_u(buf,strlen(buf));
+
     printf("%u %s\n", result, buf);
+    count++;
   }
 }
