@@ -216,8 +216,7 @@ static int cmd_x(char *args){
 }
 
 static int cmd_w(char *args){
-  char *arg = strtok(NULL, " ");
-  if(new_wp(arg)){
+  if(new_wp(args)){
     return 0;
   }else{
     return 1;

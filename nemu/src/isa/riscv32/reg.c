@@ -27,10 +27,24 @@ void isa_reg_display() {
   int length_of_regs = sizeof(regs)/sizeof(regs[0]);
 
   for(int i = 0;i<length_of_regs;i++){
-    printf("%-3s  0x%x  %d\n",regs[i],cpu.gpr[i],cpu.gpr[i]);
+    printf("%-3s  0x%x  0x%x\n",regs[i],cpu.gpr[i],cpu.gpr[i]);
   }
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
+  int length_of_regs = sizeof(regs)/sizeof(regs[0]);
+
+  if(strcmp("pc",s)==1){
+    return cpu.pc;
+  }
+
+  for(int i = 0;i<length_of_regs;i++){
+    if(strcmp(regs[i],s) == 1){
+      return cpu.gpr[i];
+    }
+  }
+
+  printf("Can't find the reg \"%s\"",s);
+  *success = false;
   return 0;
 }

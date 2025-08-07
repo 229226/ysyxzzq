@@ -123,6 +123,12 @@ void print_wp(){
 bool new_wp(char *wt){
   assert(wt != NULL);
   WP *new_wp = pnew_wp(wt);
+  bool success = true;
+  new_wp->last_val = expr(new_wp->what,&success);
+  if(!success){
+    printf("Can't get the initial value of watchpoint\n");
+    return false;
+  }
   if(new_wp == NULL){
     return false;
   }else{
@@ -131,14 +137,14 @@ bool new_wp(char *wt){
 }
 bool is_wp_diff(){
   WP *tmp = head;
-  bool success;
+  bool success = true;
   uint32_t result;
   bool changed = false;
   while (tmp != NULL)
   {
     result = expr(tmp->what,&success);
     if(!success){
-      printf("Failed to refresh the value of watchpoint %d",tmp->NO);
+      printf("Failed to refresh the value of watchpoint %d\n",tmp->NO);
     }else{
       if(result != tmp->last_val){
         if(changed == false){
