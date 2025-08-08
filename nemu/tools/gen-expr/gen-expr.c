@@ -32,7 +32,8 @@ static char *code_format =
 "}";
 
 static int index_buf = 0;
-static char op[4] = {'+','-','*','/'};
+static char *op[15] = {"||","&&","|","^","&","==","!=",">",">="
+  ,"<","<=","+","-","*","/"};
 
 static int inc_index(int n){
   if((index_buf + n)>(65536-2)){
@@ -63,8 +64,15 @@ static int gen(char ch){
   return 0;
 }
 static int gen_rand_op(){
-  buf[index_buf] = op[choose(4)];
-  if(inc_index(1)) return 1;
+  char *op_pointer = op[choose(15)];
+  int op_length = strlen(op_pointer);
+  strcpy(buf+index_buf,op_pointer);
+  if(inc_index(op_length)){
+  }else{
+    strcpy(buf+index_buf,"(unsigned int)");
+    int length = strlen("(unsigned int)");
+    if(inc_index(length)) return 1;
+  }
   return 0;
 }
 static int gen_rand_expr() {
@@ -108,7 +116,15 @@ static int gen_rand_expr() {
 }
 static void replace_u(char *data,int length){
   for(int i = 0;i<length;i++){
-    if(data[i]=='u'){
+    if((data[i]>='a')&&(data[i]<='z')){
+      if (data[i]=='n')
+      {
+        data[i-2]=' ';
+      }
+      if (data[i]=='t')
+      {
+        data[i+1]=' ';
+      }
       data[i]=' ';
     }    
   }

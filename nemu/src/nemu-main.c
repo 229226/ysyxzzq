@@ -41,18 +41,18 @@ int test_expr(){
     success = true;
     sscanf(buffer,"%u %[^\n]",&result,e);
     ret = expr(e,&success);
-    printf("%3d: ",count);
+    //printf("%3d: ",count);
     if (!success){
-      printf("Fail to calculate the expression by expr()\n");
+      printf("%5d:  Fail to calculate the expression by expr()\n",count);
       falsecount++;
     }else{
       if(result == ret){
-        printf(" true  ");
+        //printf(" true  ");
       }else{
-        printf(" false ");
+        printf("%5d: false %u %u\n",count,result,ret);
         falsecount++;
       }
-      printf("%u %u\n" ,result,ret);
+      //printf("%u %u\n" ,result,ret);
     }
     count++;
   }

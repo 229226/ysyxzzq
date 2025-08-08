@@ -22,6 +22,7 @@
 
 enum
 {
+  //16------优先级别
   TK_NOTYPE = 256,
 
   /* TODO: Add more token types */
@@ -29,15 +30,34 @@ enum
   TK_NUMB_HEX,
   TK_NUMB_DEC,
 
-  TK_AND, //与
+  //12
+  TK_OR,  //逻辑或
+  //11
+  TK_AND, //逻辑与
+  //10
+  TK_BOR, //按位或
+  //9
+  TK_BXOR,//按位异或
+  //8
+  TK_BAND,//按位与
+  //7
   TK_EQ,  //等于
   TK_NEQ, //不等于
+  //6
+  TK_GT,  //大于
+  TK_GTE, //大于等于
+  TK_LT,  //小于
+  TK_LTE, //小于等于
+  //4
   TK_PLUS,  //加
   TK_SUB, //减
+  //3
   TK_MUL, //乘
   TK_DIV, //除
+  //2
   TK_DERE,  //指针解
   TK_NEG, //负号
+  //1
   TK_LBRA,  //左括号
   TK_RBRA,  //右括号
 };
@@ -56,9 +76,17 @@ static struct rule
     {"0[xX][0-9]+", TK_NUMB_HEX}, // hexadecimal numbers
     {"[0-9]+", TK_NUMB_DEC},      // decimal numbers
 
+    {"\\|\\|",TK_OR},
     {"&&", TK_AND},   // logical and
+    {"\\|",TK_BOR},
+    {"\\^",TK_BXOR},
+    {"&",TK_BAND},
     {"==", TK_EQ},    // equal
     {"!=", TK_NEQ},   // not equal
+    {">[^=]",TK_GT},
+    {">=",TK_GTE},
+    {"<[^=]",TK_LT},
+    {"<=",TK_LTE},
     {"\\+", TK_PLUS}, // plus
     {"-", TK_SUB},    // subtract
     {"\\*", TK_MUL},  // multiply or dereference
@@ -168,8 +196,14 @@ static bool make_token(char *e, bool *success)
           }
           break;
         }
-
+        
+        case TK_OR:
         case TK_AND:
+        case TK_BAND:
+        case TK_BOR:
+        case TK_BXOR:
+        case TK_GTE:
+        case TK_LTE:
         case TK_EQ:
         case TK_NEQ:
         case TK_PLUS:
@@ -179,6 +213,16 @@ static bool make_token(char *e, bool *success)
         case TK_RBRA:
         case TK_LBRA:
         {
+          tokens[nr_token].type = rules[i].token_type;
+          inc_nr_token(success);
+          if (!(*success))
+            return false;
+          break;
+        }
+        case TK_GT://由于匹配>和<会消耗后面的一个字符因此需要特殊处理
+        case TK_LT:
+        {
+          position--;
           tokens[nr_token].type = rules[i].token_type;
           inc_nr_token(success);
           if (!(*success))
@@ -348,18 +392,62 @@ static uint32_t eval_expr(int p, int q, bool *success)
       }
     }
     
-    uint32_t val1 = eval_expr(p, top - 1, success);
+    uint32_t val1;
+    uint32_t val2;
+    //短路运算符特殊处理
+    switch (tokens[top].type)
+    {
+    case TK_OR:{
+      uint32_t val1 = eval_expr(p, top - 1, success);
+      if (!(*success))
+      return 0;
+      if (val1 != 0){
+        return 1;
+      }else{
+        uint32_t val2 = eval_expr(top + 1, q, success);
+        if (!(*success))
+          return 0;
+        return (val1 || val2);
+      }
+      break;
+    }
+    case TK_AND:{
+      uint32_t val1 = eval_expr(p, top - 1, success);
+      if (!(*success))
+      return 0;
+      if (val1 == 0){
+        return 0;
+      }else{
+        uint32_t val2 = eval_expr(top + 1, q, success);
+        if (!(*success))
+          return 0;
+        return (val1 && val2);
+      }
+    }
+    default:
+      break;
+    }
+
+    val1 = eval_expr(p, top - 1, success);
     if (!(*success))
       return 0;
-    uint32_t val2 = eval_expr(top + 1, q, success);
+    val2 = eval_expr(top + 1, q, success);
     if (!(*success))
       return 0;
 
     switch (tokens[top].type)
     {
-    case TK_AND:
+    case TK_BAND:
     {
-      return (val1 && val2);
+      return (val1 & val2);
+    }
+    case TK_BXOR:
+    {
+      return (val1 ^ val2);
+    }
+    case TK_BOR:
+    {
+      return (val1 | val2);
     }
     case TK_EQ:
     {
@@ -368,6 +456,22 @@ static uint32_t eval_expr(int p, int q, bool *success)
     case TK_NEQ:
     {
       return (val1 != val2);
+    }
+    case TK_GT:
+    {
+      return (val1 > val2);
+    }
+    case TK_GTE:
+    {
+      return (val1 >= val2);
+    }
+    case TK_LT:
+    {
+      return (val1 < val2);
+    }
+    case TK_LTE:
+    {
+      return (val1 <= val2);
     }
     case TK_PLUS:
     {
@@ -379,13 +483,13 @@ static uint32_t eval_expr(int p, int q, bool *success)
     }
     case TK_MUL:
     {
-      return ((uint32_t)val1 * (u_int32_t)val2);
+      return (val1 * val2);
     }
     case TK_DIV:
     {
       if (val2 == 0)
       {
-        printf("The divisor can't be zero,the val1 = %u\n",val1);
+        printf("The divisor can't be zero,the val1 = %u\n p=%d  q=%d  top=%d\n",val1,p,q,top);
         *success = false;
         return 0;
       }
@@ -438,12 +542,30 @@ static void make_priority(bool *success){
     case  TK_PLUS: 
       tokens[i].priority = 4;
       break;
+    case    TK_GT:  //大于
+    case    TK_GTE: //大于等于
+    case    TK_LT:  //小于
+    case    TK_LTE: //小于等于
+      tokens[i].priority = 6;
+      break;
     case  TK_EQ: 
     case  TK_NEQ: 
       tokens[i].priority = 7;
       break;
-    case  TK_AND:  
+    case  TK_BAND:
       tokens[i].priority = 8;
+      break;
+    case  TK_BXOR:
+      tokens[i].priority = 9;
+      break;
+    case  TK_BOR:
+      tokens[i].priority = 10;
+      break;
+    case  TK_AND:  
+      tokens[i].priority = 11;
+      break;
+    case  TK_OR:  
+      tokens[i].priority = 12;
       break;
     case  TK_NOTYPE:
     case  TK_REG:
