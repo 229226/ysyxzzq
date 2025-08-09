@@ -43,6 +43,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_WATCHPOINT
 if(is_wp_diff()){
   printf("The watchpoint changed\n");
+  printf("PC:0x%x\n",cpu.pc);
   nemu_state.state = NEMU_STOP;
 }
 #endif

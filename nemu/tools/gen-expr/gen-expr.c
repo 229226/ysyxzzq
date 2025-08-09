@@ -151,6 +151,7 @@ int main(int argc, char *argv[]) {
     fputs(code_buf, fp);
     fclose(fp);
 
+    //启用-Werror=div-by-zero来过滤有除0行为的表达式
     int ret = system("gcc -Werror=div-by-zero /tmp/.code.c -o /tmp/.expr");
     if (ret != 0) continue;
 
