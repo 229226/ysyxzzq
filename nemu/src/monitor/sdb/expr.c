@@ -48,13 +48,18 @@ enum
   TK_GTE, //大于等于
   TK_LT,  //小于
   TK_LTE, //小于等于
+  //5
+  TK_LSHT,  //左移
+  TK_RSHT,  //右移
   //4
   TK_PLUS,  //加
   TK_SUB, //减
   //3
   TK_MUL, //乘
   TK_DIV, //除
+  TK_REM, //取余
   //2
+  TK_BNEG, //按位取反
   TK_DERE,  //指针解
   TK_NEG, //负号
   //1
@@ -78,19 +83,29 @@ static struct rule
 
     {"\\|\\|",TK_OR},
     {"&&", TK_AND},   // logical and
-    {"\\|",TK_BOR},
+    {"\\|[^|]",TK_BOR},
     {"\\^",TK_BXOR},
-    {"&",TK_BAND},
+    {"&[^&]",TK_BAND},
     {"==", TK_EQ},    // equal
     {"!=", TK_NEQ},   // not equal
-    {">[^=]",TK_GT},
+
+    {">[^=>]",TK_GT},
     {">=",TK_GTE},
-    {"<[^=]",TK_LT},
+    {"<[^=<]",TK_LT},
     {"<=",TK_LTE},
-    {"\\+", TK_PLUS}, // plus
-    {"-", TK_SUB},    // subtract
+
+    {"<<",TK_LSHT},
+    {">>",TK_RSHT},
+
+    {"\\+[^+]", TK_PLUS}, // plus
+    {"-[^-]", TK_SUB},    // subtract
+
     {"\\*", TK_MUL},  // multiply or dereference
     {"/", TK_DIV},    // divide
+    {"%",TK_REM},
+
+    {"~",TK_BNEG},
+
     {"\\(", TK_LBRA}, // left bracket
     {"\\)", TK_RBRA}, // right bracket
 };
@@ -196,18 +211,17 @@ static bool make_token(char *e, bool *success)
           }
           break;
         }
-        
+        case TK_LSHT:
+        case TK_RSHT:
+        case TK_REM:
+        case TK_BNEG:
         case TK_OR:
         case TK_AND:
-        case TK_BAND:
-        case TK_BOR:
         case TK_BXOR:
         case TK_GTE:
         case TK_LTE:
         case TK_EQ:
         case TK_NEQ:
-        case TK_PLUS:
-        case TK_SUB:
         case TK_MUL:
         case TK_DIV:
         case TK_RBRA:
@@ -219,8 +233,12 @@ static bool make_token(char *e, bool *success)
             return false;
           break;
         }
-        case TK_GT://由于匹配>和<会消耗后面的一个字符因此需要特殊处理
+        case TK_GT://由于匹配>和<这类的符号会消耗后面的一个字符因此需要特殊处理
         case TK_LT:
+        case TK_PLUS:
+        case TK_SUB:
+        case TK_BAND:
+        case TK_BOR:
         {
           position--;
           tokens[nr_token].type = rules[i].token_type;
@@ -320,7 +338,7 @@ static uint32_t eval_expr(int p, int q, bool *success)
 {
   if (p > q)
   {
-    printf("The argument of eval_expr p > q\n");
+    printf("The argument of eval_expr p=%d > q=%d\n",p,q);
     *success = false;
     return 0;
   }
@@ -355,7 +373,7 @@ static uint32_t eval_expr(int p, int q, bool *success)
     }
     default:
     {
-      printf("Can't find the type of p == q in eval_expr\n");
+      printf("Can't find the type of p == q in eval_expr\nop = %u",tokens[p].type);
       *success = false;
       return 0;
     }
@@ -376,20 +394,31 @@ static uint32_t eval_expr(int p, int q, bool *success)
     int top = find_top(p, q, success);
     if (!(*success))
       return 0;
-    if (top == p)
+    //单目运算符
+    if (tokens[top].priority == 2)
     {
-      uint32_t val = eval_expr(top+1,q,success);
+      uint32_t  val = eval_expr(top+1,q,success);
       if (!(*success))
       return 0;
-      switch (tokens[top].type)
-      {
-      case TK_DERE:
-        return (uint32_t)paddr_read(val,4);
-      case TK_NEG:
-        return -(uint32_t)val;
-      default:
-        break;
-      }
+        for (int i = top; i >= p; i--)
+        {
+          switch (tokens[i].type)
+          {
+          case  TK_DERE:
+            val = paddr_read(val,4);
+            break;
+          case  TK_NEG:
+            val = -val;
+            break;
+          case  TK_BNEG:
+            val = ~val;
+            break;
+          default:
+            printf("Can't find the tokens that priority == 2\np = %d q = %d top = %d",p,q,top);
+            break;
+          }
+        }
+      return val;
     }
     
     uint32_t val1;
@@ -437,6 +466,29 @@ static uint32_t eval_expr(int p, int q, bool *success)
 
     switch (tokens[top].type)
     {
+    case  TK_REM:
+    {
+      if(val2==0){
+        printf("The remainder's divisor can't be zero\nval1 = %u p=%d  q=%d  top=%d\n",val1,p,q,top);
+        *success = false;
+        return 0;
+      }
+      return val1 % val2;
+    }
+    case  TK_LSHT:{
+      if (val2>32)
+      {
+        return 0; 
+      }
+      return  val1 << val2;
+    }
+    case  TK_RSHT:{
+      if (val2>32)
+      {
+        return 0; 
+      }
+      return  val1 >> val2;
+    }
     case TK_BAND:
     {
       return (val1 & val2);
@@ -489,7 +541,7 @@ static uint32_t eval_expr(int p, int q, bool *success)
     {
       if (val2 == 0)
       {
-        printf("The divisor can't be zero,the val1 = %u\n p=%d  q=%d  top=%d\n",val1,p,q,top);
+        printf("The divisor can't be zero\nval1 = %u p=%d  q=%d  top=%d\n",val1,p,q,top);
         *success = false;
         return 0;
       }
@@ -530,17 +582,23 @@ static void make_priority(bool *success){
     case  TK_RBRA:
       tokens[i].priority = 1;
       break;
+    case  TK_BNEG:
     case  TK_DERE:  
     case  TK_NEG: 
       tokens[i].priority = 2;
       break;
     case  TK_MUL: 
     case  TK_DIV: 
+    case  TK_REM:
       tokens[i].priority = 3;
       break;
     case  TK_SUB: 
     case  TK_PLUS: 
       tokens[i].priority = 4;
+      break;
+    case    TK_LSHT:
+    case    TK_RSHT:
+      tokens[i].priority = 5;
       break;
     case    TK_GT:  //大于
     case    TK_GTE: //大于等于

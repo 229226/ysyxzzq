@@ -32,12 +32,13 @@ static char *code_format =
 "}";
 
 static int index_buf = 0;
-static char *op[15] = {"||","&&","|","^","&","==","!=",">",">="
-  ,"<","<=","+","-","*","/"};
+static char *op[] = {"||","&&","|","^","&","==","!=",">",">="
+  ,"<","<=","+","-","*","/","%","<<",">>"};
+static char *luop[] = {"-","~"};
 
 static int inc_index(int n){
   if((index_buf + n)>(65536-2)){
-    printf("Reach the maximum of the buf in gen-expr\n");
+    //printf("Reach the maximum of the buf in gen-expr\n");
     return 1;
   }else{
     index_buf += n;
@@ -64,7 +65,7 @@ static int gen(char ch){
   return 0;
 }
 static int gen_rand_op(){
-  char *op_pointer = op[choose(15)];
+  char *op_pointer = op[choose(18)];
   int op_length = strlen(op_pointer);
   strcpy(buf+index_buf,op_pointer);
   if(inc_index(op_length)){
@@ -72,6 +73,18 @@ static int gen_rand_op(){
     strcpy(buf+index_buf,"(unsigned int)");
     int length = strlen("(unsigned int)");
     if(inc_index(length)) return 1;
+  }
+  return 0;
+}
+static int gen_uop(char l_or_r){
+  char *uop_p;
+  if(l_or_r == 'l'){
+    uop_p = luop[choose(2)];
+  }else{return 0;}
+  int uop_length = strlen(uop_p);
+  strcpy(buf+index_buf,uop_p);
+  if(inc_index(uop_length)){
+    return 1;
   }
   return 0;
 }
@@ -103,10 +116,9 @@ static int gen_rand_expr(int depth) {
       break;
     }
     case 4:{
-      if(gen('-')) return 1;
-      if(gen('(')) return 1;
+      if(gen_uop('l')) return 1;
+      if(gen(' ')) return 1;
       if(gen_rand_expr(depth-1)) return 1;
-      if(gen(')')) return 1;
       break;
     }
     default:{
@@ -146,7 +158,7 @@ int main(int argc, char *argv[]) {
   int count = 0;
   while(count < loop){
     index_buf = 0;
-    if(gen_rand_expr(100)){
+    if(gen_rand_expr(500)){
       continue;
     }
     
@@ -158,7 +170,7 @@ int main(int argc, char *argv[]) {
     fclose(fp);
 
     //启用-Werror=div-by-zero来过滤有除0行为的表达式
-    int ret = system("gcc -Werror=div-by-zero /tmp/.code.c -o /tmp/.expr");
+    int ret = system("gcc -Werror=div-by-zero -Werror=shift-count-overflow /tmp/.code.c -o /tmp/.expr");
     if (ret != 0) continue;
 
     //使用popen执行了指令并返回一个*FILE
