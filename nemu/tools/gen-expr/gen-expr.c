@@ -37,7 +37,7 @@ static char *op[15] = {"||","&&","|","^","&","==","!=",">",">="
 
 static int inc_index(int n){
   if((index_buf + n)>(65536-2)){
-    //printf("Reach the maximum of the buf in gen-expr\n");
+    printf("Reach the maximum of the buf in gen-expr\n");
     return 1;
   }else{
     index_buf += n;
@@ -75,7 +75,12 @@ static int gen_rand_op(){
   }
   return 0;
 }
-static int gen_rand_expr() {
+static int gen_rand_expr(int depth) {
+  if (depth == 1)
+  {
+    if(gen_num()) return 1;
+  }else{
+  //return 1表示程序运行出错，0表示正常
   switch (choose(6)) {
     case 0: {
       if(gen_num()) return 1; 
@@ -83,34 +88,35 @@ static int gen_rand_expr() {
     }
     case 1: {
       if(gen('(')) return 1;
-      if(gen_rand_expr()) return 1;
+      if(gen_rand_expr(depth-1)) return 1;
       if(gen(')')) return 1;
       break;
     }
     case 2: {
-      if(gen_rand_expr()) return 1;
+      if(gen_rand_expr(depth-1)) return 1;
       if(gen(' ')) return 1;
       break;
     }
     case 3: {
       if(gen(' ')) return 1;
-      if(gen_rand_expr()) return 1;
+      if(gen_rand_expr(depth-1)) return 1;
       break;
     }
     case 4:{
-      if(gen('(')) return 1;
       if(gen('-')) return 1;
-      if(gen_rand_expr()) return 1;
+      if(gen('(')) return 1;
+      if(gen_rand_expr(depth-1)) return 1;
       if(gen(')')) return 1;
       break;
     }
     default:{
-      if(gen_rand_expr()) return 1;
+      if(gen_rand_expr(depth-1)) return 1;
       if(gen_rand_op()) return 1;
-      if(gen_rand_expr()) return 1;
+      if(gen_rand_expr(depth-1)) return 1;
       break;
     }
   }
+}
   buf[index_buf+1] = '\0';
   return 0;
 }
@@ -140,7 +146,7 @@ int main(int argc, char *argv[]) {
   int count = 0;
   while(count < loop){
     index_buf = 0;
-    if(gen_rand_expr()){
+    if(gen_rand_expr(100)){
       continue;
     }
     
