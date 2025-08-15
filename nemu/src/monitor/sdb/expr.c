@@ -78,7 +78,7 @@ static struct rule
      */
     {" +", TK_NOTYPE},            // spaces
     {"\\$[0-9a-zA-Z]+", TK_REG},          // reg_name
-    {"0[xX][0-9]+", TK_NUMB_HEX}, // hexadecimal numbers
+    {"0[xX][0-9a-zA-Z]+", TK_NUMB_HEX}, // hexadecimal numbers
     {"[0-9]+", TK_NUMB_DEC},      // decimal numbers
 
     {"\\|\\|",TK_OR},
