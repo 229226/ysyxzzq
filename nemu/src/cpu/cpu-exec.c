@@ -18,6 +18,7 @@
 #include <cpu/difftest.h>
 #include <locale.h>
 #include <monitor/sdb.h>
+#include <cpu/iringbuffer.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -25,6 +26,8 @@
  * You can modify this value as you want.
  */
 #define MAX_INST_TO_PRINT 100
+
+IRingBuffer iringbuffer;
 
 CPU_state cpu = {};
 uint64_t g_nr_guest_inst = 0;
@@ -77,6 +80,8 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+
+  iringb_add(&iringbuffer,s->logbuf);
 #endif
 }
 
@@ -115,6 +120,8 @@ void cpu_exec(uint64_t n) {
     default: nemu_state.state = NEMU_RUNNING;
   }
 
+  init_iringbuffer(&iringbuffer,20);
+
   uint64_t timer_start = get_time();
 
   execute(n);
@@ -131,7 +138,12 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+      
       // fall through
     case NEMU_QUIT: statistic();
   }
+  #ifdef CONFIG_ITRACE
+    iringb_print(&iringbuffer);
+    iringb_free(&iringbuffer);
+  #endif
 }
