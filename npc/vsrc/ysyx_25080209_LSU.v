@@ -1,18 +1,23 @@
-module ysyx_25080209_LSU#(ADDR_WID = 5,DATA_WID = 32)(
-    input clk,reg_wen,
-    input [ADDR_WID-1:0] reg_raddr1,reg_raddr2,reg_waddr,
-    input [DATA_WID-1:0] reg_wdata,
-    output [DATA_WID-1:0] reg_rdata1,reg_rdata2
+module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
+    input valid,wen,
+    input [ADDR_WID-1:0]raddr,waddr,
+    input [DATA_WID-1:0]wdata,
+    input [7:0]wmask,
+    output reg [DATA_WID-1:0]rdata
 );
+import "DPI-C" function int pmem_read(input int raddr);
+import "DPI-C" function void pmem_write(
+  input int waddr, input int wdata, input byte wmask);
+always @(*) begin
+  if (valid) begin // 有读写请求时
+    rdata = pmem_read(raddr);
+    if (wen) begin // 有写请求时
+      pmem_write(waddr, wdata, wmask);
+    end
+  end
+  else begin
+    rdata = 0;
+  end
+end
 
-RegisterFile #(5,32) Regs (
-    .clk    (clk),
-    .raddr1 (reg_raddr1),
-    .raddr2 (reg_raddr2),
-    .rdata1 (reg_rdata1),
-    .rdata2 (reg_rdata2),
-    .waddr  (reg_waddr),
-    .wdata  (reg_wdata),
-    .wen    (reg_wen)
-);
 endmodule

@@ -1,4 +1,4 @@
-module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (
+module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 32) (
   input clk,
   input [DATA_WIDTH-1:0] wdata,
   input [ADDR_WIDTH-1:0] waddr,
@@ -8,10 +8,24 @@ module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (
   output [DATA_WIDTH-1:0] rdata2,
   input wen
 );
-  reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
-  always @(posedge clk) begin
-    if (wen) rf[waddr] <= wdata;
+import "DPI-C" function void read_reg(int val,int num);
+integer i;
+
+reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
+
+reg [DATA_WIDTH -1:0]wdata_in;
+assign wdata_in = (|waddr) ? wdata : 0;
+
+always @(posedge clk) begin
+  if (wen) rf[waddr] <= wdata_in;
+end
+
+always @(*) begin
+  for(i = 0 ; i < 32 ; i++)begin
+    read_reg(rf[i],i);
   end
-  assign rdata1 = (|raddr1) ? rf[raddr1] : 0;
-  assign rdata2 = (|raddr2) ? rf[raddr2] : 0;
+end
+
+assign rdata1 = rf[raddr1];
+assign rdata2 = rf[raddr2];
 endmodule

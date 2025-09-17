@@ -1,0 +1,18 @@
+#ifndef __MEM_HPP_
+#define _MEM_HPP_
+
+#include "common.hpp"
+
+#define paddr_t uint32_t
+#define RESETADDR 0x80000000
+
+extern int mem_size;
+
+void init_mem(char *file_img);
+uint32_t mem_read(uint32_t pc);
+void mem_write(uint32_t pc,uint32_t data);
+int mem_check(uint32_t pc);
+extern "C" int pmem_read(int raddr);
+extern "C" void pmem_write(int waddr, int wdata, char wmask);
+
+#endif
