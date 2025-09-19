@@ -1,13 +1,13 @@
 module ysyx_25080209_npc #(DATA_WID = 32)(
     input clk,
-    input rst,
-    input [DATA_WID-1:0]ins_in,
-    output [DATA_WID-1:0] pc
+    input rst
 );
+wire [DATA_WID-1:0]ins,pc;
 //IFU
 ysyx_25080209_IFU IFU (
     .clk(clk),
-    .ins( ins_in)
+    .pc(pc),
+    .ins( ins)
 );
 //IDU
 wire [3:0]alu_op;
@@ -16,8 +16,8 @@ wire [1:0]pc_sw;
 wire [1:0]wreg_sw;
 wire [DATA_WID-1:0]imm;
 
-ysyx_25080209_IDU IDU (
-    .ins    (ins_in),
+ysyx_25080209_IDU #(32,4) IDU (
+    .ins    (ins),
     .imm    (imm),
     .rs2_imm(rs2_imm),
     .alu_op(alu_op),
@@ -74,10 +74,10 @@ ysyx_25080209_WBU WBU(
     .mem_wreg  (mem_wreg)
 );
 //regs
-wire [4:0]reg_raddr1,reg_raddr2,reg_waddr;
+wire [3:0]reg_raddr1,reg_raddr2,reg_waddr;
 wire [DATA_WID-1:0] reg_wdata,reg_rdata1,reg_rdata2;
 
-RegisterFile #(5,32) Regs (
+RegisterFile #(4,32) Regs (
     .clk    (clk),
     .raddr1 (reg_raddr1),
     .raddr2 (reg_raddr2),
@@ -95,4 +95,8 @@ Reg #(32,32'h8000_0000) reg_pc (
     .rst    (rst),
     .wen    (1'b1)
 );
+import "DPI-C" function void read_reg(int val,int num);
+always @(*) begin
+    read_reg(pc,32);
+end
 endmodule

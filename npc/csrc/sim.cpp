@@ -16,8 +16,13 @@ void sim_init(){
     tfp->open("./build/waveform.fst");
 
     top->rst = 1;
-    sim_clk();
+    top->clk = 0;
+    step_and_dump();
+    top->clk = 1;
+    step_and_dump();
     top->rst = 0;
+    top->clk = 0;
+    step_and_dump();
 }
 
 void sim_exit(){
@@ -26,9 +31,9 @@ void sim_exit(){
 }
 
 void sim_clk(){
-  top->clk = 0;
-  step_and_dump();
   top->clk = 1;
+  step_and_dump();
+  top->clk = 0;
   step_and_dump();
 }
 
@@ -39,18 +44,13 @@ void step_and_dump(){
 }
 
 int sim_exec_half(){
-    npc.pc = top->pc;
-    top->ins_in = mem_read(top->pc);
     top->clk = 0;
     step_and_dump();
     return 0;
 }
 
 int sim_exec_one(){
-    npc.pc = top->pc;
-    top->ins_in = mem_read(top->pc);
     sim_clk();
-    npc.pc = top->pc; 
     diff_step();
     return 0;
 }

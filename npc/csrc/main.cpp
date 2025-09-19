@@ -9,7 +9,7 @@ void ebreak(){
   npc_status.status = NPC_ABORT;
 }
 void read_reg(int val,int num){
-  npc.reg[num] = val;
+  ((int *)&npc)[num] = val;
 }
 void itrace(int ins){
   itrace_print(ins);

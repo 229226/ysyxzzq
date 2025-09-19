@@ -21,7 +21,7 @@ always @(posedge clk) begin
 end
 
 always @(*) begin
-  for(i = 0 ; i < 32 ; i++)begin
+  for(i = 0 ; i < 2**ADDR_WIDTH ; i++)begin
     read_reg(rf[i],i);
   end
 end

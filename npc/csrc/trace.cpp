@@ -20,3 +20,10 @@ void itrace_print(int ins){
     printf("%s\n",itrace_str);
     return;
 }
+
+void mtrace_pread(uint32_t addr,uint32_t data){
+    fprintf(trace_file,"mtrace:read addr=0x%08x data=0x%08x\n",addr,data);
+}
+void mtrace_pwrite(uint32_t addr,uint32_t data){
+    fprintf(trace_file,"mtrace:write addr=0x%08x data=0x%08x\n",addr,data);
+}

@@ -31,7 +31,7 @@ run: insert-arg
 	$(MAKE) -C $(NPC_HOME) run  ARGS=$(NPCFLAGS)    
 
 sim: insert-arg
-	$(MAKE) -C  $(NPC_HOME) sim ARGS=$(NPCFLAGS)
+	$(MAKE) -C $(NPC_HOME) sim 	ARGS=$(NPCFLAGS)
 
 gdb: insert-arg
 	$(MAKE) -C $(NPC_HOME) gdb  ARGS=$(NPCFLAGS)

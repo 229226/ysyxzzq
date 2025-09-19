@@ -1,5 +1,6 @@
 #include "mem.hpp"
 #include "moniter.hpp"
+#include "trace.hpp"
 
 int mem_size = 0x1000000;
 
@@ -46,7 +47,7 @@ int pmem_check(uint32_t addr){
     if(addr >= RESETADDR && addr <= (RESETADDR + mem_size - 1)){
         return 1;
     }
-    printf("地址在mem之外\n");
+    printf("地址在mem之外 addr = 0x%08x\n",addr);
     return 0;
 }
 
@@ -56,7 +57,9 @@ extern "C" int pmem_read(int raddr){
         return 0;
     }
     uint32_t addr = (uint32_t)raddr;
-    return *((uint32_t *)addr);
+    int data = *(int *)addr;
+    mtrace_pread(addr,data);
+    return data;
 }
 extern "C" void pmem_write(int waddr, int wdata, char wmask){
     if(!pmem_check(waddr)){
@@ -74,4 +77,5 @@ extern "C" void pmem_write(int waddr, int wdata, char wmask){
         assert(0);
         break;
     }
+    mtrace_pwrite(waddr,wdata);
 }

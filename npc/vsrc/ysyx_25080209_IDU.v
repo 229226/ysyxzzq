@@ -1,4 +1,4 @@
-module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 5)(
+module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
     input [DATA_WID-1:0]ins,mem_rdata,
     output [DATA_WID-1:0]imm,
     output reg [3:0]alu_op,            
@@ -25,9 +25,9 @@ wire [2:0]func3;
 assign opcode = ins[6:0];
 assign func3 = ins[14:12];
 
-assign reg_raddr1 = ins[19:15];
-assign reg_raddr2 = ins[24:20];
-assign reg_waddr  = ins[11:7];
+assign reg_raddr1 = ins[15+RADDR_WID-1:15];
+assign reg_raddr2 = ins[20+RADDR_WID-1:20];
+assign reg_waddr  = ins[7+RADDR_WID-1:7];
 
 MuxKeyWithDefault #(1,32,1) Mux_ebreak (status_ebreak,ins,1'b0,{
     32'b000000000001_00000_000_00000_1110011,1'b1   //ebreak

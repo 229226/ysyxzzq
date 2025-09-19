@@ -6,4 +6,7 @@
 void trace_init();
 void itrace_print(int ins);
 
+void mtrace_pread(uint32_t addr,uint32_t data);
+void mtrace_pwrite(uint32_t addr,uint32_t data);
+
 #endif
