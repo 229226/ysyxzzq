@@ -1,5 +1,7 @@
 # "一生一芯"工程项目
 
+这是某个一生一芯学员的项目
+
 这是"一生一芯"的工程项目. 通过运行
 ```bash
 bash init.sh subproject-name
