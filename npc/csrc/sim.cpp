@@ -1,6 +1,7 @@
 #include "sim.hpp"
 #include "moniter.hpp"
 #include "diff_test.hpp"
+#include "trace.hpp"
 
 #define TOP_NAME Vysyx_25080209_npc
 
@@ -51,7 +52,9 @@ int sim_exec_half(){
 
 int sim_exec_one(){
     sim_clk();
-    diff_step();
+    #ifdef DIFF_CONFIG
+      diff_step();
+    #endif
     return 0;
 }
 
@@ -70,5 +73,9 @@ int sim_exec(int turns){
         }
     }
   }
+
+  #ifdef ITRACE_CONFIG
+    itrace_rb_pr();
+  #endif
   return 0;
 }

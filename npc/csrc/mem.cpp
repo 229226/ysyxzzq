@@ -58,7 +58,10 @@ extern "C" int pmem_read(int raddr){
     }
     uint32_t addr = (uint32_t)raddr;
     int data = *(int *)addr;
-    mtrace_pread(addr,data);
+
+    #ifdef MTRACE_CONFIG
+        mtrace_pread(addr,data);
+    #endif
     return data;
 }
 extern "C" void pmem_write(int waddr, int wdata, char wmask){
@@ -77,5 +80,8 @@ extern "C" void pmem_write(int waddr, int wdata, char wmask){
         assert(0);
         break;
     }
-    mtrace_pwrite(waddr,wdata);
+    #ifdef MTRACE_CONFIG
+        mtrace_pwrite(waddr,wdata);
+    #endif
+    
 }

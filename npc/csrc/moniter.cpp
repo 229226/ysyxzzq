@@ -51,13 +51,17 @@ void print_regs(NPC cpu){
 void moniter_init(int argc , char *argv[]){
     init_prase(argc,argv);
 
-    trace_init();
+    #ifdef TRACE_CONFIG
+        trace_init();
+    #endif
 
     init_mem(file_img);
 
     init_disasm();
 
-    diff_init();
+    #ifdef DIFF_CONFIG
+        diff_init();
+    #endif
 }
 
 void moniter_loop(){

@@ -12,7 +12,9 @@ void read_reg(int val,int num){
   ((int *)&npc)[num] = val;
 }
 void itrace(int ins){
-  itrace_print(ins);
+  #ifdef ITRACE_CONFIG
+    itrace_print(ins);
+  #endif
 }
 
 int main(int argc, char *argv[]) {
