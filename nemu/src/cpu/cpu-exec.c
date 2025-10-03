@@ -119,8 +119,9 @@ void cpu_exec(uint64_t n) {
       return;
     default: nemu_state.state = NEMU_RUNNING;
   }
-
+  #ifdef CONFIG_ITRACE
   init_iringbuffer(&iringbuffer,20);
+  #endif
 
   uint64_t timer_start = get_time();
 

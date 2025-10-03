@@ -3,10 +3,11 @@
 #include <klib-macros.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-#define print_model(w_byte,w_s,w_d,w_0) \
+#define print_model(w_byte,w_s,w_d,w_x,w_0) \
   int len_out = 0;\
   int len_fmt = 0;\
   va_list args;\
@@ -38,6 +39,13 @@
         len_out += str_len;\
         len_fmt += 2;\
         break;\
+      case 'x':\
+        num_int = va_arg(args,int);\
+        str_len = strlen(str_num);\
+        w_x\
+        len_out += str_len;\
+        len_fmt += 2;\
+        break;\
       default:\
         return -1;\
         break;\
@@ -53,15 +61,23 @@ int int2string(int num_int,char *str);
 
 int printf(const char *fmt, ...) {
   print_model(
-    putch(fmt[len_fmt]);,
+    putch(fmt[len_fmt]);
+    ,
     for (int i = 0; i < str_len; i++)
     {
       putch(str[i]);
-    },
+    }
+    ,
     for (int i = 0; i < str_len; i++)
     {
       putch(str_num[i]);
-    },
+    }
+    ,
+    for (int i = 0; i < str_len; i++)
+    {
+      putch(str_num[i]);
+    }
+    ,
   )
 }
 
@@ -71,9 +87,14 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
 
 int sprintf(char *out, const char *fmt, ...) {
   print_model(
-    out[len_out] = fmt[len_fmt];,
-    strcpy(out+len_out,str);,
-    strcpy(out+len_out,str_num);,
+    out[len_out] = fmt[len_fmt];
+    ,
+    strcpy(out+len_out,str);
+    ,
+    strcpy(out+len_out,str_num);
+    ,
+
+    ,
     out[len_out] = '\0';
   )
 }
@@ -136,5 +157,7 @@ int int2string(int num_int,char *str){
 
   return str_len;
 }
-
+int hex2string(int num_int,char *str){
+  return 0;
+}
 #endif

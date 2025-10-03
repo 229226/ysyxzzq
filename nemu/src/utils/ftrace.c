@@ -6,8 +6,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#define FUNC_MAX 128
-#define FNMAE_MAX 32
+#define FUNC_MAX 4096
+#define FNMAE_MAX 128
 
 static  uint32_t func_addr[FUNC_MAX];
 static  int func_len[FUNC_MAX];
