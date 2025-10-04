@@ -36,7 +36,9 @@ void itrace_rb_pr(){
 
 void itrace_print(int ins){
     sprintf(itrace_str,"pc:0x%08x ins:0x%08x ",npc.pc,ins);
-    if(disassemble(itrace_str + strlen(itrace_str),ITRACE_BUFLEN - strlen(itrace_str),npc.pc,(uint8_t *)&ins,4) == -1) return;
+    if(disassemble(itrace_str + strlen(itrace_str),ITRACE_BUFLEN - strlen(itrace_str),npc.pc,(uint8_t *)&ins,4) == -1) {
+        printf("itrace: 反编译失败\n");
+        return;}
     itrace_rb_add(itrace_str);
     fprintf(trace_file,"%s\n",itrace_str);
     return;

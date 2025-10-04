@@ -5,6 +5,7 @@
 #include "sdb.hpp"
 #include "diff_test.hpp"
 #include "trace.hpp"
+#include "timer.hpp"
 
 Npc_Status npc_status;
 NPC npc;
@@ -62,6 +63,8 @@ void moniter_init(int argc , char *argv[]){
     #ifdef DIFF_CONFIG
         diff_init();
     #endif
+
+    init_timer();
 }
 
 void moniter_loop(){

@@ -7,14 +7,20 @@
 
 static TOP_NAME *top = new TOP_NAME;
 static VerilatedContext* contextp = NULL;
-static VerilatedFstC* tfp = NULL;
+#ifdef FST_CONFIG
+  static VerilatedFstC* tfp = NULL;
+#endif
+
 
 void sim_init(){
     Verilated::traceEverOn(true);
     contextp = new VerilatedContext;
+
+    #ifdef FST_CONFIG
     tfp = new VerilatedFstC;
     top->trace(tfp,99);
     tfp->open("./build/waveform.fst");
+    #endif
 
     top->rst = 1;
     top->clk = 0;
@@ -28,7 +34,10 @@ void sim_init(){
 
 void sim_exit(){
   step_and_dump();
+
+  #ifdef FST_CONFIG
   tfp->close();
+  #endif
 }
 
 void sim_clk(){
@@ -41,7 +50,10 @@ void sim_clk(){
 void step_and_dump(){
   top->eval();
   contextp->timeInc(1);
+
+  #ifdef FST_CONFIG
   tfp->dump(contextp->time());
+  #endif
 }
 
 int sim_exec_half(){

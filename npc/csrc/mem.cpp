@@ -1,6 +1,8 @@
 #include "mem.hpp"
 #include "moniter.hpp"
 #include "trace.hpp"
+#include "npc_ioe.hpp"
+#include "timer.hpp"
 
 int mem_size = 0x1000000;
 
@@ -35,14 +37,6 @@ void init_mem(char *file_img){
     close(mem_fd);
 }
 
-uint32_t mem_read(uint32_t pc){
-    return *((uint32_t *)pc);
-}
-
-void mem_write(uint32_t pc,uint32_t data){
-    *(uint32_t *)pc = data;
-}
-
 int pmem_check(uint32_t addr){
     if(addr >= RESETADDR && addr <= (RESETADDR + mem_size - 1)){
         return 1;
@@ -51,11 +45,41 @@ int pmem_check(uint32_t addr){
     return 0;
 }
 
+int mmio_check(int addr){
+    if((addr & DEVICE_BASE_ADDR) == DEVICE_BASE_ADDR){
+        return 1;
+    }
+    return 0;
+}
+
+static uint64_t timer = 0;
+
+int mmio_read(int raddr){
+    if(raddr == TIMER_ADDR){
+        return (int)timer;
+    }else if(raddr == TIMER_ADDR + 4)
+    {
+        timer = gettime();
+        return (int)((timer) >> 32);
+    }
+    return 0;
+}
+void mmio_write(int waddr,int wdata,int wmask){
+    if(waddr == SERIAL_ADDR){
+        putchar(wdata);
+    }
+}
+
 extern "C" int pmem_read(int raddr){
+    if(mmio_check(raddr)){
+        return mmio_read(raddr);
+    }
+
     if(!pmem_check(raddr)){
         //npc_status.status = NPC_ABORT;
         return 0;
     }
+
     uint32_t addr = (uint32_t)raddr;
     int data = *(int *)addr;
 
@@ -65,10 +89,15 @@ extern "C" int pmem_read(int raddr){
     return data;
 }
 extern "C" void pmem_write(int waddr, int wdata, char wmask){
-    if(!pmem_check(waddr)){
-        //
+    if(mmio_check(waddr)){
+        mmio_write(waddr,wdata,wmask);
         return;
     }
+
+    if(!pmem_check(waddr)){
+        return;
+    }
+
     uint32_t addr = (uint32_t)waddr;
     switch (wmask)
     {
@@ -76,7 +105,7 @@ extern "C" void pmem_write(int waddr, int wdata, char wmask){
     case 0b00000011: *((uint16_t* )addr) = wdata;break;
     case 0b00001111: *((uint32_t* )addr) = wdata;break;
     default:
-        printf("mem:读取使用的wmask错误");
+        printf("mem:读取使用的wmask错误 %d\n",wmask);
         assert(0);
         break;
     }

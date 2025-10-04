@@ -3,6 +3,8 @@
 
 #include "common.hpp"
 
+#define log_write 
+
 void trace_init();
 void itrace_print(int ins);
 

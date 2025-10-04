@@ -52,21 +52,26 @@ $(BIN):$(VSRC) $(CSRC) $(OBJ_DIR)
 		
 all: 
 
+NPC_EXEC := $(BIN) $(ARGS)
+
 run: $(BIN)
-	$^ $(ARGS)
+	$(call git_commit, "run RTL")
+	$(NPC_EXEC)
 
 gdb: $(BIN)
-	$(GDB) $^ $(ARGS)
+	$(call git_commit, "gdb RTL")
+	$(GDB) -s $(BIN) --args $(NPC_EXEC)
 	
 valgrind: $(BIN)
 	$(VALGRIND) $^ $(ARGS)
 
-sim: run
+sim: $(BIN)
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
+	$(NPC_EXEC)
 	$(GTKWAVE) $(WAVE_FILE)
 
 clean: 
 	rm -rf $(BUILD_PATH)
 
-.PHONY: all sim run
+.PHONY: all sim run gdb valgrind
 include ../Makefile

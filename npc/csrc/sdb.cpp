@@ -89,7 +89,7 @@ static int cmd_x(char *argv){
         for (int i = 0; i < length; i++)
         {
             uint32_t i_addr = addr + 4*i;
-            printf("0x%08x:   0x%08x\n",i_addr,mem_read(i_addr));
+            printf("0x%08x:   0x%08x\n",i_addr,pmem_read(i_addr));
         }
     }else{
         cmd_phelp(4);
