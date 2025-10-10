@@ -41,7 +41,7 @@
         break;\
       case 'x':\
         num_int = va_arg(args,int);\
-        str_len = strlen(str_num);\
+        str_len = hex2string(num_int,str_num);\
         w_x\
         len_out += str_len;\
         len_fmt += 2;\
@@ -58,6 +58,7 @@
 
 
 int int2string(int num_int,char *str);
+int hex2string(int num_int,char *str);
 
 int printf(const char *fmt, ...) {
   print_model(
@@ -157,7 +158,36 @@ int int2string(int num_int,char *str){
 
   return str_len;
 }
+char hex2char(int num){
+  if(num >= 0 && num <= 9){
+    return '0' + num;
+  }else if(num >= 10 && num <= 15){
+    return 'a' + (num-10);
+  }else{
+    return '?';
+  }
+}
 int hex2string(int num_int,char *str){
-  return 0;
+  int num = 0;
+  int strlen = 0;
+  int start = 0;
+  for(int i = 0; i < 8 ; i ++){
+    num = ((num_int >> ((7-i)*4)) & 0xF);
+    if((start == 0) && num != 0){
+      str[strlen] = hex2char(num);
+      strlen++;
+      start = 1;
+    }else if(start == 1){
+      str[strlen] = hex2char(num);
+      strlen++;
+    }
+  }
+
+  if(start == 0){
+    str[0] = '0';
+    strlen++;
+  }
+  str[strlen] = '\0';
+  return strlen;
 }
 #endif

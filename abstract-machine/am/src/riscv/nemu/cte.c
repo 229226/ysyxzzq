@@ -5,9 +5,18 @@
 static Context* (*user_handler)(Event, Context*) = NULL;
 
 Context* __am_irq_handle(Context *c) {
+  // printf("进入中断处理函数\n");
+  // for(int i = 0; i < 32 ; i++){
+  //   printf("gpr%d = 0x%x\n",i ,c->gpr[i]);
+  // }
+  // printf("mcause = 0x%x\n",c->mcause);
+  // printf("mstatus = 0x%x\n",c->mstatus);
+  // printf("mepc = 0x%x\n",c->mepc);
+
   if (user_handler) {
     Event ev = {0};
     switch (c->mcause) {
+      case 0: ev.event = EVENT_YIELD; break;
       default: ev.event = EVENT_ERROR; break;
     }
 

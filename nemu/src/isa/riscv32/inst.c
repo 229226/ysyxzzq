@@ -19,21 +19,25 @@
 #include <cpu/decode.h>
 
 #define R(i) gpr(i)
+#define CSR(i) csr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
 
 enum {
-  TYPE_R, TYPE_I, TYPE_B ,TYPE_U, TYPE_S, TYPE_J,
+  TYPE_R, TYPE_I, TYPE_B ,TYPE_U, TYPE_S, TYPE_J, TYPE_Z,
   TYPE_N, // none
 };
 
 #define src1R() do { *src1 = R(rs1); } while (0)
 #define src2R() do { *src2 = R(rs2); } while (0)
+#define src1N() do { *src1 = rs1;    } while (0)
+
 #define immI() do { *imm = SEXT(BITS(i, 31, 20), 12); } while(0)
 #define immU() do { *imm = SEXT(BITS(i, 31, 12), 20) << 12; } while(0)
 #define immS() do { *imm = (SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7); } while(0)
 #define immJ() do { *imm = (SEXT(BITS(i,31,31),1)<<20) | (BITS(i,30,21)<<1) | (BITS(i,20,20)<<11) | (BITS(i,19,12)<<12);} while(0)
 #define immB() do { *imm = (SEXT(BITS(i,31,31),1)<<12)|(BITS(i,30,25)<<5)|(BITS(i,11,8)<<1)|(BITS(i,7,7)<<11);} while(0)
+#define immZ() do { *imm = BITS(i, 31, 20);} while(0)
 
 #define RV32RET 0x00008067
 void ftrace_pcall(uint32_t pc,uint32_t faddr);
@@ -51,6 +55,7 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
     case TYPE_U:                   immU(); break;
     case TYPE_S: src1R(); src2R(); immS(); break;
     case TYPE_J:                   immJ(); break;
+    case TYPE_Z: src1N();          immZ(); break;
     case TYPE_N: break;
     default: panic("unsupported type = %d", type);
   }
@@ -121,8 +126,18 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000000 ????? ????? 110 ????? 01100 11", or     , R, R(rd) = src1 | src2);
   INSTPAT("0000000 ????? ????? 111 ????? 01100 11", and    , R, R(rd) = src1 & src2);
 
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , N, s->dnpc=isa_raise_intr(0,s->pc));
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , Z, if(rd != 0){R(rd) = CSR(imm);}CSR(imm) = R(src1););
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , Z, R(rd) = CSR(imm);if(src1 != 0){CSR(imm) |= R(src1);});
+  INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , Z, R(rd) = CSR(imm);if(src1 != 0){CSR(imm) &= (~R(src1));});
+  INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , Z, if(rd != 0){R(rd) = CSR(imm);}CSR(imm) = src1;);
+  INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , Z, R(rd) = CSR(imm);if(src1 != 0){CSR(imm) |= src1;});
+  INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , Z, R(rd) = CSR(imm);if(src1 != 0){CSR(imm) &= (~src1);});
+
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , N, s->dnpc = CSR(MEPC_INDEX););
+
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = (signed)src1 * (signed)src2);
   INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   , R, int64_t res = (SEXT(src1,32) * SEXT(src2,32)) >> (signed)32;R(rd) = (int32_t)res);
   INSTPAT("0000001 ????? ????? 010 ????? 01100 11", mulhsu , R, int64_t res = (SEXT(src1,32) * (unsigned)src2) >> (signed)32;R(rd) = (int32_t)res);

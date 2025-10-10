@@ -18,9 +18,15 @@
 
 #include <common.h>
 
+#define MSTATUS_INDEX 0x300
+#define MTVEC_INDEX   0x305
+#define MEPC_INDEX    0x341
+#define MCAUSE_INDEX  0x342
+
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   vaddr_t pc;
+  word_t csr[4096];
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
 
 // decode
