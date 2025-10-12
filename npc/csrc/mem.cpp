@@ -4,7 +4,7 @@
 #include "npc_ioe.hpp"
 #include "timer.hpp"
 
-int mem_size = 0x1000000;
+const int mem_size = 0x8000000;
 
 void init_mem(char *file_img){
     if(file_img == NULL){
@@ -67,16 +67,24 @@ int mmio_read(int raddr){
 void mmio_write(int waddr,int wdata,int wmask){
     if(waddr == SERIAL_ADDR){
         putchar(wdata);
+        fflush(stdout);
     }
 }
+
+static int first_time = 1;
 
 extern "C" int pmem_read(int raddr){
     if(mmio_check(raddr)){
         return mmio_read(raddr);
     }
 
-    if(!pmem_check(raddr)){
-        //npc_status.status = NPC_ABORT;
+    if(first_time != 1){
+        if(!pmem_check(raddr)){
+            npc_status.status = NPC_ABORT;
+        return 0;
+        }
+    }else{
+        first_time = 0;
         return 0;
     }
 

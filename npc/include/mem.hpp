@@ -6,7 +6,7 @@
 #define paddr_t uint32_t
 #define RESETADDR 0x80000000
 
-extern int mem_size;
+extern const int mem_size;
 
 void init_mem(char *file_img);
 extern "C" int pmem_read(int raddr);

@@ -41,12 +41,15 @@ void itrace_print(int ins){
         return;}
     itrace_rb_add(itrace_str);
     fprintf(trace_file,"%s\n",itrace_str);
+    fflush(trace_file);
     return;
 }
 
 void mtrace_pread(uint32_t addr,uint32_t data){
     fprintf(trace_file,"mtrace:read addr=0x%08x data=0x%08x\n",addr,data);
+    fflush(trace_file);
 }
 void mtrace_pwrite(uint32_t addr,uint32_t data){
     fprintf(trace_file,"mtrace:write addr=0x%08x data=0x%08x\n",addr,data);
+    fflush(trace_file);
 }

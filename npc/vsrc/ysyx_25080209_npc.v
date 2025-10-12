@@ -10,12 +10,18 @@ ysyx_25080209_IFU IFU (
     .ins( ins)
 );
 //IDU
+wire [DATA_WID-1:0]imm;
 wire [3:0]alu_op;
 wire rs2_imm,reg_wen,pc_rs1;
 wire [1:0]pc_sw;
-wire [1:0]wreg_sw;
-wire [DATA_WID-1:0]imm;
-
+wire [2:0]wreg_sw;
+//IDU_csr
+wire wen_csr,ren_csr,csr_w_sw;
+wire [DATA_WID-1:0] csr_zimm;
+//IDU_ecall
+wire ecall;
+//IDU_mret
+wire mret;
 ysyx_25080209_IDU #(32,4) IDU (
     .ins    (ins),
     .imm    (imm),
@@ -31,8 +37,16 @@ ysyx_25080209_IDU #(32,4) IDU (
     .mem_valid  (mem_valid),
     .mem_wen    (mem_wen),
     .mem_wmask  (mem_wmask),
-    .mem_rdata  (mem_rdata),
-    .mem_wreg   (mem_wreg)
+    .mem_rmask  (mem_rmask),
+
+    .wen_csr    (wen_csr ),
+    .ren_csr    (ren_csr),
+    .csr_w_sw   (csr_w_sw),
+    .csr_zimm   (csr_zimm),
+
+    .ecall      (ecall),
+
+    .mret       (mret)
 );
 //EXU
 wire [DATA_WID-1:0] exu_out;
@@ -49,34 +63,45 @@ ysyx_25080209_EXU EXU(
 //LSU
 wire mem_valid,mem_wen;
 wire [7:0]mem_wmask;
-wire [DATA_WID-1:0]mem_rdata,mem_wreg;
-
+wire [DATA_WID-1:0]mem_rdata;
+wire [2:0]mem_rmask;
 ysyx_25080209_LSU LSU(
     .valid(mem_valid),
     .wen  (mem_wen),
     .wmask(mem_wmask),
+    .rmask (mem_rmask),
     .raddr(exu_out),
-    .rdata(mem_rdata),
+    .rdata_out(mem_rdata),
     .waddr(exu_out),
     .wdata(reg_rdata2)
 );
 //WBU
 wire [DATA_WID-1:0] pc_in;
-
 ysyx_25080209_WBU WBU(
     .wreg_sw    (wreg_sw),
     .pc_sw      (pc_sw  ),
     .pc    	    (pc     ),
-    .pc_in 	    (pc_in  ),
     .exu_out    (exu_out),
     .imm        (imm    ),
+    .mem_wreg  (mem_rdata),
+    .csr_wreg   (csr_rdata),
+
+    .csr_w_sw   (csr_w_sw),
+    .csr_wrs1   (reg_rdata1),
+    .csr_wzimm  (csr_zimm),
+
+    .pc_in 	    (pc_in  ),
     .reg_wdata  (reg_wdata),
-    .mem_wreg  (mem_wreg)
+    .csr_wdata  (csr_wdata),
+
+    .ecall      (ecall),
+    .mret       (mret),
+    .mtvec      (mtvec),
+    .mepc       (mepc)
 );
 //regs
 wire [3:0]reg_raddr1,reg_raddr2,reg_waddr;
 wire [DATA_WID-1:0] reg_wdata,reg_rdata1,reg_rdata2;
-
 RegisterFile #(4,32) Regs (
     .clk    (clk),
     .raddr1 (reg_raddr1),
@@ -95,6 +120,30 @@ Reg #(32,32'h8000_0000) reg_pc (
     .rst    (rst),
     .wen    (1'b1)
 );
+//csr
+// output declaration of module ysyx_25080209_CSR
+wire [DATA_WID-1:0] csr_rdata,csr_wdata;
+wire [11:0]csr_raddr,csr_waddr;
+assign csr_raddr = imm[11:0];
+assign csr_waddr = imm[11:0];
+
+wire [DATA_WID-1:0]mtvec,mepc;
+ysyx_25080209_CSR u_ysyx_25080209_CSR(
+    .clk   	(clk    ),
+    .wen   	(wen_csr    ),
+    .ren   	(ren_csr    ),
+    .wdata 	(csr_wdata  ),
+    .waddr 	(csr_waddr  ),
+    .raddr 	(csr_raddr  ),
+    .rdata 	(csr_rdata  ),
+
+    .pc     (pc),
+    .ecall  (ecall),
+    
+    .mtvec    (mtvec),
+    .mepc       (mepc)
+);
+
 import "DPI-C" function void read_reg(int val,int num);
 always @(*) begin
     read_reg(pc,32);

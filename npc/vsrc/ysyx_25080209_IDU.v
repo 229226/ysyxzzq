@@ -1,16 +1,23 @@
 module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
-    input [DATA_WID-1:0]ins,mem_rdata,
+    input [DATA_WID-1:0]ins,
     output [DATA_WID-1:0]imm,
     output reg [3:0]alu_op,            
     output rs2_imm,             //1 rs2,0 imm
     output reg_wen,
-    output [1:0]wreg_sw,
+    output [2:0]wreg_sw,
     output pc_rs1,
     output [1:0]pc_sw,
     output [RADDR_WID-1:0] reg_raddr1,reg_raddr2,reg_waddr,
-    output  mem_valid,mem_wen,
-    output  [7:0]mem_wmask,
-    output [DATA_WID-1:0]mem_wreg
+    output mem_valid,mem_wen,
+    output [7:0]mem_wmask,
+    output [2:0]mem_rmask,
+
+    output wen_csr,ren_csr,csr_w_sw,
+    output [DATA_WID-1:0]csr_zimm,
+
+    output ecall,
+
+    output mret
 );
 import "DPI-C" function void ebreak();
 wire status_ebreak;
@@ -29,9 +36,33 @@ assign reg_raddr1 = ins[15+RADDR_WID-1:15];
 assign reg_raddr2 = ins[20+RADDR_WID-1:20];
 assign reg_waddr  = ins[7+RADDR_WID-1:7];
 
+
+
+//ebreak
 MuxKeyWithDefault #(1,32,1) Mux_ebreak (status_ebreak,ins,1'b0,{
     32'b000000000001_00000_000_00000_1110011,1'b1   //ebreak
 });
+
+
+
+//ecall
+//0 not ecall
+//1 ecall
+MuxKeyWithDefault #(1,32,1) Mux_ecall (ecall,ins,1'b0,{
+    32'b000000000000_00000_000_00000_1110011,1'b1
+});
+
+
+
+//mret
+//0 not mret
+//1 mret
+MuxKeyWithDefault #(1,32,1) Mux_mret (mret,ins,1'b0,{
+    32'b0011000_00010_00000_000_00000_1110011,1'b1
+});
+
+
+
 //alu_op
 always @(*) begin
     casez ({ins[31:25],func3,opcode})
@@ -85,7 +116,7 @@ wire [DATA_WID-1:0]imm_I = {{20{ins[31]}},ins[31:20]};
 wire [DATA_WID-1:0]imm_B = {{20{ins[31]}},ins[7],ins[30:25],ins[11:8],1'b0};
 wire [DATA_WID-1:0]imm_S = {{20{ins[31]}},ins[31:25],ins[11:7]};
 
-MuxKeyWithDefault #(8,7,32) Mux_imm (imm,opcode,32'b0,{
+MuxKeyWithDefault #(9,7,32) Mux_imm (imm,opcode,32'b0,{
     7'b0110111,imm_U,   //lui
     7'b0010111,imm_U,   //auipc
     7'b1101111,imm_J,   //jal
@@ -93,12 +124,13 @@ MuxKeyWithDefault #(8,7,32) Mux_imm (imm,opcode,32'b0,{
     7'b1100011,imm_B,   //beq,bne,blt,bge,bltu,bgeu
     7'b0000011,imm_I,   //lb,lh,lw,lbu,lhu
     7'b0100011,imm_S,   //sb,sh,sw
-    7'b0010011,imm_I    //addi,slti,sltiu,xori,ori,andi,slli,srli,srai
+    7'b0010011,imm_I,   //addi,slti,sltiu,xori,ori,andi,slli,srli,srai
+    7'b1110011,imm_I    //csrr
 });
 //reg_wen
 //0 disable
 //1 enable
-MuxKeyWithDefault #(7,7,1) Mux_reg_wen (reg_wen,opcode,1'b0,{
+MuxKeyWithDefault #(8,7,1) Mux_reg_wen (reg_wen,opcode,1'b0,{
     7'b0110111,1'b1,            //lui
     7'b0010111,1'b1,            //auipc
     7'b1101111,1'b1,            //jal
@@ -106,30 +138,38 @@ MuxKeyWithDefault #(7,7,1) Mux_reg_wen (reg_wen,opcode,1'b0,{
     7'b0000011,1'b1,            //lb,lh,lw,lbu,lhu
     //0 sb,sh,sw
     7'b0010011,1'b1,            //addi,slti,sltiu,xori,ori,andi,slli,srli,srai
-    7'b0110011,1'b1             //add,sub,sll,slt,sltu,xor,srl,sra,or,and
-}
+    7'b0110011,1'b1,            //add,sub,sll,slt,sltu,xor,srl,sra,or,and
+    7'b1110011,1'b1             //csrr csrrw的rs1=0的时候由于ren=0读出的CSR=0，写入到X0当中，不会产生侧效应
+    }
 );
 //wreg_sw
-//00 write exu_out
-//01 write imm 
-//10 write pc+4
-//11 write mem_wreg
-MuxKeyWithDefault #(4,7,2) Mux_wreg_sw (wreg_sw,opcode,2'b0,{
-    7'b0110111,2'b01,           //lui
-    7'b1101111,2'b10,           //jal
-    7'b1100111,2'b10,           //jalr
-    7'b0000011,2'b11            //lb,lh,lw,lbu,lhu
+//000 write exu_out
+//001 write imm 
+//010 write pc+4
+//011 write mem_wreg
+//100 write csr
+MuxKeyWithDefault #(5,7,3) Mux_wreg_sw (wreg_sw,opcode,3'b0,{
+    7'b0110111,3'b001,           //lui
+    7'b1101111,3'b010,           //jal
+    7'b1100111,3'b010,           //jalr
+    7'b0000011,3'b011,           //lb,lh,lw,lbu,lhu
+    7'b1110011,3'b100           //csrr
 }
 );
 //pc_sw
 //00 pc+4
 //01 exu_out
 //10 branch
-MuxKeyWithDefault #(3,7,2) Mux_pc_sw (pc_sw,opcode,2'b0,{
+//11 pc=pc
+MuxKeyWithDefault #(4,7,2) Mux_pc_sw (pc_sw,opcode,2'b0,{
     7'b1101111,2'b01,           //jal
     7'b1100111,2'b01,           //jalr
-    7'b1100011,2'b10            //beq,bne,blt.bge,bltu,bgeu
+    7'b1100011,2'b10,           //beq,bne,blt.bge,bltu,bgeu
+    7'b0000000,2'b11            //无效指令
 });
+
+
+
 //mem_valid
 MuxKeyWithDefault #(2,7,1) Mux_mem_valid (mem_valid,opcode,1'b0,{
     7'b0100011,1'b1,            //sb,sh,sw
@@ -145,12 +185,54 @@ MuxKeyWithDefault #(3,10,8) Mux_mem_wmask (mem_wmask,{func3,opcode},8'b0,{
     10'b0010100011,8'b00000011, //sh
     10'b0100100011,8'b00001111  //sw
 });
-//mem_wreg
-MuxKeyWithDefault #(5,10,32) Mux_mem_wreg (mem_wreg,{func3,opcode},32'b0,{
-    10'b0000000011,{{24{mem_rdata[7]}},mem_rdata[7:0]},     //lb
-    10'b0010000011,{{16{mem_rdata[15]}},mem_rdata[15:0]},   //lh
-    10'b0100000011,mem_rdata,                               //lw
-    10'b1000000011,{24'b0,mem_rdata[7:0]},                  //lbu
-    10'b1010000011,{16'b0,mem_rdata[15:0]}                  //lhu
+//mem_rmask
+//000 not write
+//001 write byte
+//010 write half word
+//011 write word
+//100 write unsigned byte
+//101 write unsigned half word 
+MuxKeyWithDefault #(5,10,3) Mux_mem_wreg (mem_rmask,{func3,opcode},3'b0,{
+    10'b000_0000011,3'b001,     //lb
+    10'b001_0000011,3'b010,     //lh
+    10'b010_0000011,3'b011,     //lw
+    10'b100_0000011,3'b100,     //lbu
+    10'b101_0000011,3'b101      //lhu
 });     
+
+
+
+//csr_sc_w
+//00 not csr instruction
+//01 csrrw
+//10 csrrs/c
+wire [1:0]csr_sc_w;
+//csr_w_sw
+//0 write rs1 to csr
+//1 write zimm to csr
+assign csr_zimm = {{(DATA_WID-5){1'b0}},ins[24:20]};
+MuxKeyWithDefault #(6,10,3) Mux_csr_sc_w ({csr_sc_w,csr_w_sw},{func3,opcode},3'b0,{
+    10'b001_1110011,3'b01_0,
+    10'b010_1110011,3'b10_0,
+    10'b011_1110011,3'b10_0,
+    10'b101_1110011,3'b01_1,
+    10'b110_1110011,3'b10_1,
+    10'b111_1110011,3'b10_1
+});
+//wen_csr
+always @(*) begin
+    casez ({reg_raddr1,csr_sc_w})
+        6'b????_00:wen_csr = 1'b0;
+        6'b0000_10:wen_csr = 1'b0;
+    default: wen_csr = 1'b1;
+    endcase
+end
+//ren_csr
+always @(*) begin
+    casez ({reg_waddr,csr_sc_w})
+        6'b????_00:ren_csr = 1'b0;
+        6'b0000_01:ren_csr = 1'b0;
+    default: ren_csr = 1'b1;
+    endcase
+end
 endmodule

@@ -47,6 +47,7 @@ __am_asm_trap:
   csrr t0, mcause
   csrr t1, mstatus
   csrr t2, mepc
+  addi t2,t2,4    //软件上对PC+4
 
   STORE t0, OFFSET_CAUSE(sp)
   STORE t1, OFFSET_STATUS(sp)
@@ -59,13 +60,11 @@ __am_asm_trap:
 
   mv a0, sp
   call __am_irq_handle
-  mv sp, a0
+  mv sp, a0       //切换线程栈
 
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)
   csrw mstatus, t1
-
-  addi t2,t2,4    //软件上对PC+4
   csrw mepc, t2
 
   MAP(REGS, POP)
