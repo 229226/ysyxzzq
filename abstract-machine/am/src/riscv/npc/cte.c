@@ -8,8 +8,14 @@ Context* __am_irq_handle(Context *c) {
   if (user_handler) {
     Event ev = {0};
     switch (c->mcause) {
-      case 0x8: ev.event = EVENT_YIELD; break;
-      case 0xb: ev.event = EVENT_YIELD; break;
+      case 0x8:{
+        c->mepc += 4;
+        ev.event = EVENT_YIELD; break;
+      }//Environment call from U-mode
+      case 0xb:{
+        c->mepc += 4;
+        ev.event = EVENT_YIELD; break;
+      }//Environment call from M-mode
       default: ev.event = EVENT_ERROR; break;
     }
 
