@@ -1,14 +1,12 @@
 module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
+    input clk,rst,
     input [DATA_WID-1:0]ins,
-
     //ALU signal
     output [DATA_WID-1:0]imm,         
     output pc_rs1,rs2_imm,
     output reg [3:0]alu_op,   
-
     //PC signal
     output [1:0]pc_sw,
-
     //reg signal
     //read reg
     output [RADDR_WID-1:0] reg_raddr1,reg_raddr2,
@@ -16,19 +14,58 @@ module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
     output reg_wen,
     output [RADDR_WID-1:0]reg_waddr,
     output [2:0]wreg_sw,
-    
     //MEM signal
     output mem_valid,mem_wen,
     output [7:0]mem_wmask,
     output [2:0]mem_rmask,
-
     //CSR signal
     output wen_csr,ren_csr,csr_w_sw,
     output [DATA_WID-1:0]csr_zimm,
-
-    output ecall,mret
+    //特殊信号
+    output ecall,mret,
+    //IDUstate
+    input IFU_valid,EXU_ready,
+    output IDU_ready,IDU_valid
 );
-
+//IDUstate
+//0 idle
+//1 wait_ready
+reg IDU_state,nIDU_state;
+always @(posedge clk) begin
+    if(rst) IDU_state <= 0;
+    else IDU_state <= nIDU_state;
+end
+always @(*) begin
+    case (IDU_state)
+        0:begin
+            if(IFU_valid) nIDU_state = 1;
+            else nIDU_state = 0;
+        end 
+        1:begin
+            if(EXU_ready) nIDU_state = 0;
+            else nIDU_state = 1;
+        end
+        default;
+    endcase
+end
+always @(*) begin
+    case (IDU_state)
+        0:begin
+            if(IFU_valid) IDU_valid = 1;
+            else IDU_valid = 0;
+            if(EXU_ready) IDU_ready = 1;
+            else IDU_ready = 0;
+        end
+        1:begin
+            if(IFU_valid) IDU_valid = 1;
+            else IDU_valid = 0;
+            if(EXU_ready) IDU_ready = 1;
+            else IDU_ready = 0;
+        end
+        default;
+    endcase
+end
+//
 wire [6:0]opcode;
 wire [2:0]func3;
 assign opcode = ins[6:0];
@@ -37,7 +74,6 @@ assign func3 = ins[14:12];
 assign reg_raddr1 = ins[15+RADDR_WID-1:15];
 assign reg_raddr2 = ins[20+RADDR_WID-1:20];
 assign reg_waddr  = ins[7+RADDR_WID-1:7];
-
 //ebreak
 import "DPI-C" function void ebreak();
 wire status_ebreak;
@@ -49,21 +85,18 @@ end
 MuxKeyWithDefault #(1,32,1) Mux_ebreak (status_ebreak,ins,1'b0,{
     32'b000000000001_00000_000_00000_1110011,1'b1   //ebreak
 });
-
 //ecall
 //0 not ecall
 //1 ecall
 MuxKeyWithDefault #(1,32,1) Mux_ecall (ecall,ins,1'b0,{
     32'b000000000000_00000_000_00000_1110011,1'b1
 });
-
 //mret
 //0 not mret
 //1 mret
 MuxKeyWithDefault #(1,32,1) Mux_mret (mret,ins,1'b0,{
     32'b0011000_00010_00000_000_00000_1110011,1'b1
 });
-
 //alu_op
 always @(*) begin
     casez ({ins[31:25],func3,opcode})
@@ -128,7 +161,6 @@ MuxKeyWithDefault #(9,7,32) Mux_imm (imm,opcode,32'b0,{
     7'b0010011,imm_I,   //addi,slti,sltiu,xori,ori,andi,slli,srli,srai
     7'b1110011,imm_I    //csrr
 });
-
 //reg_wen
 //0 disable
 //1 enable
@@ -158,7 +190,6 @@ MuxKeyWithDefault #(5,7,3) Mux_wreg_sw (wreg_sw,opcode,3'b0,{
     7'b1110011,3'b100            //csrr
 }
 );
-
 //pc_sw
 //00 pc+4
 //01 exu_out
@@ -170,7 +201,6 @@ MuxKeyWithDefault #(4,7,2) Mux_pc_sw (pc_sw,opcode,2'b0,{
     7'b1100011,2'b10,           //beq,bne,blt.bge,bltu,bgeu
     7'b0000000,2'b11            //无效指令
 });
-
 //mem_valid
 MuxKeyWithDefault #(2,7,1) Mux_mem_valid (mem_valid,opcode,1'b0,{
     7'b0100011,1'b1,            //sb,sh,sw
@@ -200,7 +230,6 @@ MuxKeyWithDefault #(5,10,3) Mux_mem_wreg (mem_rmask,{func3,opcode},3'b0,{
     10'b100_0000011,3'b100,     //lbu
     10'b101_0000011,3'b101      //lhu
 });     
-
 //csr_sc_w
 //00 not csr instruction
 //01 csrrw

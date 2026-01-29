@@ -1,14 +1,18 @@
 module ysyx_25080209_npc #(DATA_WID = 32)(
-    input clk,
-    input rst
+    input clk,rst
 );
 wire [DATA_WID-1:0]ins,pc,snpc;
 //IFU
+//IFUstate
+wire IFU_valid;
 ysyx_25080209_IFU IFU (
-    .clk(clk),
+    .clk(clk),.rst(rst),
     .pc(pc),
     .ins( ins),
-    .snpc(snpc)
+    .snpc(snpc),
+    
+    .IDU_ready(IDU_ready),
+    .IFU_valid(IFU_valid)
 );
 //IDU
 wire [DATA_WID-1:0]imm;
@@ -23,7 +27,10 @@ wire [DATA_WID-1:0] csr_zimm;
 wire ecall;
 //IDU_mret
 wire mret;
+//IDUstate
+wire IDU_ready,IDU_valid;
 ysyx_25080209_IDU #(32,4) IDU (
+    .clk(clk),.rst(rst),
     .ins    (ins),
     .imm    (imm),
     .rs2_imm(rs2_imm),
@@ -47,11 +54,19 @@ ysyx_25080209_IDU #(32,4) IDU (
 
     .ecall      (ecall),
 
-    .mret       (mret)
+    .mret       (mret),
+
+    .EXU_ready(EXU_ready),
+    .IFU_valid(IFU_valid),
+    .IDU_ready(IDU_ready),
+    .IDU_valid(IDU_valid)
 );
 //EXU
 wire [DATA_WID-1:0] exu_out,pc_next;
+//EXUstate
+wire EXU_ready,EXU_valid;
 ysyx_25080209_EXU EXU(
+    .clk(clk),.rst(rst),
     .rs1     	(reg_rdata1 ),
     .rs2     	(reg_rdata2 ),
     .imm     	(imm        ),
@@ -67,14 +82,22 @@ ysyx_25080209_EXU EXU(
     .mret       (mret),
     .mtvec      (mtvec_out),
     .mepc       (mepc_out),
-    .pc_next    (pc_next)
+    .pc_next    (pc_next),
+
+    .IDU_valid(IDU_valid),
+    .LSU_ready(LSU_ready),
+    .EXU_ready(EXU_ready),
+    .EXU_valid(EXU_valid)
 );
 //LSU
 wire mem_valid,mem_wen;
 wire [7:0]mem_wmask;
 wire [DATA_WID-1:0]mem_rdata;
 wire [2:0]mem_rmask;
+//LSUstate
+wire LSU_ready,LSU_valid;
 ysyx_25080209_LSU LSU(
+    .clk(clk),.rst(rst),
     .valid(mem_valid),
     .wen  (mem_wen),
     .wmask(mem_wmask),
@@ -82,10 +105,18 @@ ysyx_25080209_LSU LSU(
     .raddr(exu_out),
     .rdata_out(mem_rdata),
     .waddr(exu_out),
-    .wdata(reg_rdata2)
+    .wdata(reg_rdata2),
+
+    .EXU_valid(EXU_valid),
+    .WBU_ready(WBU_ready),
+    .LSU_ready(LSU_ready),
+    .LSU_valid(LSU_valid)
 );
 //WBU
+//WBUstate
+wire WBU_ready;
 ysyx_25080209_WBU WBU(
+    .clk(clk),.rst(rst),
     .wreg_sw    (wreg_sw),
     .exu_out    (exu_out),
     .imm        (imm    ),
@@ -98,7 +129,10 @@ ysyx_25080209_WBU WBU(
 
     .snpc 	    (snpc  ),
     .reg_wdata  (reg_wdata),
-    .csr_wdata  (csr_wdata)
+    .csr_wdata  (csr_wdata),
+
+    .LSU_valid(LSU_valid),
+    .WBU_ready(WBU_ready)
 );
 //regs
 wire [3:0]reg_raddr1,reg_raddr2,reg_waddr;

@@ -1,12 +1,54 @@
 module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
-    input valid,wen,
-    input [ADDR_WID-1:0]raddr,waddr,
-    input [DATA_WID-1:0]wdata,
-    input [7:0]wmask,
-    input [2:0]rmask,
-    output reg [DATA_WID-1:0]rdata_out
+  input clk,rst,
+  input valid,wen,
+  input [ADDR_WID-1:0]raddr,waddr,
+  input [DATA_WID-1:0]wdata,
+  input [7:0]wmask,
+  input [2:0]rmask,
+  output reg [DATA_WID-1:0]rdata_out,
+  //LSUstate
+  input EXU_valid,WBU_ready,
+  output reg LSU_ready,LSU_valid
 );
-
+//LSUstate
+//0 idle
+//1 wait_ready
+reg LSU_state,nLSU_state;
+always @(posedge clk) begin
+    if(rst) LSU_state <= 0;
+    else LSU_state <= nLSU_state;
+end
+always @(*) begin
+  case (LSU_state)
+    0:begin
+        if(EXU_valid) nLSU_state = 1;
+        else nLSU_state = 0;
+    end 
+    1:begin
+        if(WBU_ready) nLSU_state = 0;
+        else nLSU_state = 1;
+    end
+    default;
+  endcase
+end
+always @(*) begin
+  case (LSU_state)
+    0:begin
+        if(EXU_valid) LSU_valid = 1;
+        else LSU_valid = 0;
+        if(WBU_ready) LSU_ready = 1;
+        else LSU_ready = 0;
+    end
+    1:begin
+        if(EXU_valid) LSU_valid = 1;
+        else LSU_valid = 0;
+        if(WBU_ready) LSU_ready = 1;
+        else LSU_ready = 0;
+    end
+    default;
+  endcase
+end
+//
 MuxKeyWithDefault #(5,3,32) Mux_mem_wreg (rdata_out,rmask,32'b0,{
     3'b001,{{24{rdata[7]}},rdata[7:0]},     //lb
     3'b010,{{16{rdata[15]}},rdata[15:0]},   //lh

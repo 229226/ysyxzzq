@@ -11,6 +11,7 @@ static VerilatedContext* contextp = NULL;
   static VerilatedFstC* tfp = NULL;
 #endif
 
+static int clk_num = 0;
 
 void sim_init(){
     Verilated::traceEverOn(true);
@@ -67,6 +68,8 @@ int sim_exec_one(){
     #ifdef DIFF_CONFIG
       diff_step();
     #endif
+
+    clk_num++;
     return 0;
 }
 
@@ -77,6 +80,7 @@ int sim_exec(int turns){
       if(npc_status.status == NPC_ABORT) {
         if(npc_status.ebreak_ret == 0)
         {
+          printf("npc:执行花费了%d个时钟周期\n",clk_num);
           printf("npc:HIT GOOD TRAP\n");
           break;
         }else{
