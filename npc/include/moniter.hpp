@@ -6,6 +6,9 @@
 typedef enum{
   NPC_NORMAL,NPC_ERROR,NPC_QUIT,NPC_ABORT
 }Status;
+typedef enum{
+  INS_EXEC,INS_FINI
+}INS_state;
 
 typedef struct NPC
 {
@@ -15,12 +18,13 @@ typedef struct NPC
 
 #define REGS_NUM 32
 
-typedef struct Npc_Status{
+typedef struct NPC_Status{
   Status status;
+  INS_state ins_state;
   int ebreak_ret;
-}Npc_Status;
+}NPC_Status;
 
-extern Npc_Status npc_status;
+extern NPC_Status npc_status;
 extern NPC npc;
 
 void print_regs(NPC cpu);

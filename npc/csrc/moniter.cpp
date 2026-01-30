@@ -7,7 +7,7 @@
 #include "trace.hpp"
 #include "timer.hpp"
 
-Npc_Status npc_status;
+NPC_Status npc_status;
 NPC npc;
 
 static char *file_img = NULL;

@@ -16,6 +16,10 @@ void itrace(int ins){
     itrace_print(ins);
   #endif
 }
+void ins_state(int state){
+  if(state == 1)npc_status.ins_state = INS_FINI;
+  else npc_status.ins_state = INS_EXEC;
+}
 
 int main(int argc, char *argv[]) {
   moniter_init(argc,argv);

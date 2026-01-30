@@ -155,7 +155,6 @@ wire [DATA_WID-1:0] csr_rdata,csr_wdata;
 wire [11:0]csr_raddr,csr_waddr;
 assign csr_raddr = imm[11:0];
 assign csr_waddr = imm[11:0];
-
 wire [DATA_WID-1:0]mtvec_out,mepc_out;
 ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .clk   	(clk    ),
@@ -174,5 +173,10 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .mtvec_out  (mtvec_out),
     .mepc_out   (mepc_out)
 );
-
+//diff_test
+import "DPI-C" function void ins_state(int state);
+always @(*) begin
+    if(LSU_valid) ins_state(0); //finished
+    else ins_state(1);          //running
+end
 endmodule

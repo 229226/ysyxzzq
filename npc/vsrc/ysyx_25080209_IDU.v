@@ -65,9 +65,9 @@ always @(*) begin
         default;
     endcase
 end
-//
+//多周期处理
 wire [DATA_WID-1:0] ins;
-assign ins = IFU_valid ? IDU_ins : 0;
+assign ins = IDU_valid ? IDU_ins : 0;
 //
 wire [6:0]opcode;
 wire [2:0]func3;

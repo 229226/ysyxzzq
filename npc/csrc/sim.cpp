@@ -65,7 +65,9 @@ int sim_exec_half(){
 
 int sim_exec_one(){
     sim_clk();
+    
     #ifdef DIFF_CONFIG
+      if(npc_status.ins_state == INS_FINI)
       diff_step();
     #endif
 
