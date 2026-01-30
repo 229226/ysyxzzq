@@ -77,18 +77,26 @@ int sim_exec(int turns){
   for (uint64_t i = turns; i > 0; i--)
   {
     sim_exec_one();
-      if(npc_status.status == NPC_ABORT) {
-        if(npc_status.ebreak_ret == 0)
-        {
-          printf("npc:执行花费了%d个时钟周期\n",clk_num);
+    if(npc_status.status != NPC_NORMAL) {
+      if(npc_status.status == NPC_ABORT){
+        if(npc_status.ebreak_ret == 0){
           printf("npc:HIT GOOD TRAP\n");
           break;
         }else{
           printf("npc:HIT BAD TRAP\n");
           break;
         }
+      }else if(npc_status.status == NPC_ERROR){
+        printf("npc:执行遇到错误\n");
+        break;
+      }else{
+        printf("npc:未知暂停，状态码:%d\n",npc_status.status);
+        break;
+      }
     }
   }
+  
+  printf("npc:执行花费了%d个时钟周期\n",clk_num);
 
   #ifdef ITRACE_CONFIG
     itrace_rb_pr();

@@ -6,6 +6,9 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   input [7:0]wmask,
   input [2:0]rmask,
   output reg [DATA_WID-1:0]rdata_out,
+  //中转信号
+  input   EXU_reg_wen,EXU_csr_wen,EXU_csr_ren,
+  output  LSU_reg_wen,LSU_csr_wen,LSU_csr_ren,
   //LSUstate
   input EXU_valid,WBU_ready,
   output reg LSU_ready,LSU_valid
@@ -48,7 +51,7 @@ always @(*) begin
     default;
   endcase
 end
-//
+//LOAD data
 MuxKeyWithDefault #(5,3,32) Mux_mem_wreg (rdata_out,rmask,32'b0,{
     3'b001,{{24{rdata[7]}},rdata[7:0]},     //lb
     3'b010,{{16{rdata[15]}},rdata[15:0]},   //lh
@@ -63,15 +66,29 @@ import "DPI-C" function void pmem_write(
 
 reg [DATA_WID-1:0]rdata;
 always @(*) begin
-  if (valid) begin // 有读写请求时
+  if (valid && (nLSU_state == 1)) begin // 有读请求时
     rdata = pmem_read(raddr);
-    if (wen) begin // 有写请求时
-      pmem_write(waddr, wdata, wmask);
-    end
   end
   else begin
     rdata = 0;
   end
 end
+always @(posedge clk) begin
+  if (valid && wen) begin // 有写请求时
+    if(nLSU_state == 1)pmem_write(waddr, wdata, wmask);
+  end
+end
 
+assign	LSU_reg_wen = EXU_reg_wen;
+assign	LSU_csr_wen = EXU_csr_wen;
+assign	LSU_csr_ren = EXU_csr_ren;
+
+// Mem #(8,32) u_Mem(
+//   .clk   	(clk    ),
+//   .wdata 	(wdata  ),
+//   .waddr 	(waddr[7:0]  ),
+//   .raddr 	(raddr[7:0]  ),
+//   .wen   	(wen    ),
+//   .rdata 	(rdata  )
+// );
 endmodule

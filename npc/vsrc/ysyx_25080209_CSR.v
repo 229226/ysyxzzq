@@ -49,7 +49,7 @@ always @(*) begin
             12'h305:rdata = mtvec;
             12'h341:rdata = mepc;
             12'h342:rdata = mcause;
-            default;
+            default rdata = 0;
         endcase
     end
 end

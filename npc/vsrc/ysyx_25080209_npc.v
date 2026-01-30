@@ -7,21 +7,19 @@ wire [DATA_WID-1:0]ins,pc,snpc;
 wire IFU_valid;
 ysyx_25080209_IFU IFU (
     .clk(clk),.rst(rst),
-    .pc(pc),
+    .pc_next(pc_next),.pc(pc),.snpc(snpc),
     .ins( ins),
-    .snpc(snpc),
     
-    .IDU_ready(IDU_ready),
-    .IFU_valid(IFU_valid)
+    .IDU_ready(IDU_ready),.IFU_valid(IFU_valid)
 );
 //IDU
 wire [DATA_WID-1:0]imm;
 wire [3:0]alu_op;
-wire rs2_imm,reg_wen,pc_rs1;
+wire rs2_imm,IDU_reg_wen,pc_rs1;
 wire [1:0]pc_sw;
 wire [2:0]wreg_sw;
 //IDU_csr
-wire wen_csr,ren_csr,csr_w_sw;
+wire IDU_csr_wen,IDU_csr_ren,csr_w_sw;
 wire [DATA_WID-1:0] csr_zimm;
 //IDU_ecall
 wire ecall;
@@ -31,11 +29,11 @@ wire mret;
 wire IDU_ready,IDU_valid;
 ysyx_25080209_IDU #(32,4) IDU (
     .clk(clk),.rst(rst),
-    .ins    (ins),
+    .IDU_ins    (ins),
     .imm    (imm),
     .rs2_imm(rs2_imm),
     .alu_op(alu_op),
-    .reg_wen(reg_wen),
+    .IDU_reg_wen(IDU_reg_wen),
     .wreg_sw(wreg_sw),
     .pc_rs1 (pc_rs1 ),
     .pc_sw  (pc_sw  ),
@@ -47,8 +45,8 @@ ysyx_25080209_IDU #(32,4) IDU (
     .mem_wmask  (mem_wmask),
     .mem_rmask  (mem_rmask),
 
-    .wen_csr    (wen_csr ),
-    .ren_csr    (ren_csr),
+    .IDU_csr_wen    (IDU_csr_wen ),
+    .IDU_csr_ren    (IDU_csr_ren),
     .csr_w_sw   (csr_w_sw),
     .csr_zimm   (csr_zimm),
 
@@ -56,13 +54,12 @@ ysyx_25080209_IDU #(32,4) IDU (
 
     .mret       (mret),
 
-    .EXU_ready(EXU_ready),
-    .IFU_valid(IFU_valid),
-    .IDU_ready(IDU_ready),
-    .IDU_valid(IDU_valid)
+    .EXU_ready(EXU_ready),.IFU_valid(IFU_valid),.IDU_ready(IDU_ready),.IDU_valid(IDU_valid)
 );
 //EXU
 wire [DATA_WID-1:0] exu_out,pc_next;
+//中转信号
+wire EXU_reg_wen,EXU_csr_wen,EXU_csr_ren;
 //EXUstate
 wire EXU_ready,EXU_valid;
 ysyx_25080209_EXU EXU(
@@ -84,16 +81,18 @@ ysyx_25080209_EXU EXU(
     .mepc       (mepc_out),
     .pc_next    (pc_next),
 
-    .IDU_valid(IDU_valid),
-    .LSU_ready(LSU_ready),
-    .EXU_ready(EXU_ready),
-    .EXU_valid(EXU_valid)
+    .IDU_reg_wen(IDU_reg_wen),.IDU_csr_wen(IDU_csr_wen),.IDU_csr_ren(IDU_csr_ren),
+    .EXU_reg_wen(EXU_reg_wen),.EXU_csr_wen(EXU_csr_wen),.EXU_csr_ren(EXU_csr_ren),
+
+    .IDU_valid(IDU_valid),.LSU_ready(LSU_ready),.EXU_ready(EXU_ready),.EXU_valid(EXU_valid)
 );
 //LSU
 wire mem_valid,mem_wen;
 wire [7:0]mem_wmask;
 wire [DATA_WID-1:0]mem_rdata;
 wire [2:0]mem_rmask;
+//中转信号
+wire LSU_reg_wen,LSU_csr_wen,LSU_csr_ren;
 //LSUstate
 wire LSU_ready,LSU_valid;
 ysyx_25080209_LSU LSU(
@@ -107,12 +106,13 @@ ysyx_25080209_LSU LSU(
     .waddr(exu_out),
     .wdata(reg_rdata2),
 
-    .EXU_valid(EXU_valid),
-    .WBU_ready(WBU_ready),
-    .LSU_ready(LSU_ready),
-    .LSU_valid(LSU_valid)
+    .EXU_reg_wen(EXU_reg_wen),.EXU_csr_wen(EXU_csr_wen),.EXU_csr_ren(EXU_csr_ren),
+    .LSU_reg_wen(LSU_reg_wen),.LSU_csr_wen(LSU_csr_wen),.LSU_csr_ren(LSU_csr_ren),
+
+    .EXU_valid(EXU_valid),.WBU_ready(WBU_ready),.LSU_ready(LSU_ready),.LSU_valid(LSU_valid)
 );
 //WBU
+wire WBU_reg_wen,WBU_csr_wen,WBU_csr_ren;
 //WBUstate
 wire WBU_ready;
 ysyx_25080209_WBU WBU(
@@ -131,8 +131,10 @@ ysyx_25080209_WBU WBU(
     .reg_wdata  (reg_wdata),
     .csr_wdata  (csr_wdata),
 
-    .LSU_valid(LSU_valid),
-    .WBU_ready(WBU_ready)
+    .LSU_reg_wen(LSU_reg_wen),.LSU_csr_wen(LSU_csr_wen),.LSU_csr_ren(LSU_csr_ren),
+    .WBU_reg_wen(WBU_reg_wen),.WBU_csr_wen(WBU_csr_wen),.WBU_csr_ren(WBU_csr_ren),
+
+    .LSU_valid(LSU_valid),.WBU_ready(WBU_ready)
 );
 //regs
 wire [3:0]reg_raddr1,reg_raddr2,reg_waddr;
@@ -145,15 +147,7 @@ RegisterFile #(4,32) Regs (
     .rdata2 (reg_rdata2),
     .waddr  (reg_waddr),
     .wdata  (reg_wdata),
-    .wen    (reg_wen)
-);
-//pc
-Reg #(32,32'h8000_0000) reg_pc (
-    .clk    (clk),
-    .din    (pc_next),
-    .dout   (pc),
-    .rst    (rst),
-    .wen    (1'b1)
+    .wen    (WBU_reg_wen)
 );
 //csr
 // output declaration of module ysyx_25080209_CSR
@@ -167,8 +161,8 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .clk   	(clk    ),
     .rst    (rst    ),
 
-    .wen   	(wen_csr    ),
-    .ren   	(ren_csr    ),
+    .wen   	(WBU_csr_wen    ),
+    .ren   	(WBU_csr_ren    ),
     .wdata 	(csr_wdata  ),
     .waddr 	(csr_waddr  ),
     .raddr 	(csr_raddr  ),
@@ -181,8 +175,4 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .mepc_out   (mepc_out)
 );
 
-import "DPI-C" function void read_reg(int val,int num);
-always @(*) begin
-    read_reg(pc,32);
-end
 endmodule

@@ -4,7 +4,7 @@
 #include "common.hpp"
 
 typedef enum{
-  NPC_NORMAL,NPC_ABORT,NPC_QUIT
+  NPC_NORMAL,NPC_ERROR,NPC_QUIT,NPC_ABORT
 }Status;
 
 typedef struct NPC

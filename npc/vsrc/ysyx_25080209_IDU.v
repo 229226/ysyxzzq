@@ -1,6 +1,6 @@
 module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
     input clk,rst,
-    input [DATA_WID-1:0]ins,
+    input [DATA_WID-1:0]IDU_ins,
     //ALU signal
     output [DATA_WID-1:0]imm,         
     output pc_rs1,rs2_imm,
@@ -11,7 +11,7 @@ module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
     //read reg
     output [RADDR_WID-1:0] reg_raddr1,reg_raddr2,
     //write reg
-    output reg_wen,
+    output IDU_reg_wen,
     output [RADDR_WID-1:0]reg_waddr,
     output [2:0]wreg_sw,
     //MEM signal
@@ -19,7 +19,7 @@ module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
     output [7:0]mem_wmask,
     output [2:0]mem_rmask,
     //CSR signal
-    output wen_csr,ren_csr,csr_w_sw,
+    output IDU_csr_wen,IDU_csr_ren,csr_w_sw,
     output [DATA_WID-1:0]csr_zimm,
     //特殊信号
     output ecall,mret,
@@ -65,6 +65,9 @@ always @(*) begin
         default;
     endcase
 end
+//
+wire [DATA_WID-1:0] ins;
+assign ins = IFU_valid ? IDU_ins : 0;
 //
 wire [6:0]opcode;
 wire [2:0]func3;
@@ -161,10 +164,10 @@ MuxKeyWithDefault #(9,7,32) Mux_imm (imm,opcode,32'b0,{
     7'b0010011,imm_I,   //addi,slti,sltiu,xori,ori,andi,slli,srli,srai
     7'b1110011,imm_I    //csrr
 });
-//reg_wen
+//IDU_reg_wen
 //0 disable
 //1 enable
-MuxKeyWithDefault #(8,7,1) Mux_reg_wen (reg_wen,opcode,1'b0,{
+MuxKeyWithDefault #(8,7,1) Mux_reg_wen (IDU_reg_wen,opcode,1'b0,{
     7'b0110111,1'b1,            //lui
     7'b0010111,1'b1,            //auipc
     7'b1101111,1'b1,            //jal
@@ -247,20 +250,20 @@ MuxKeyWithDefault #(6,10,3) Mux_csr_sc_w ({csr_sc_w,csr_w_sw},{func3,opcode},3'b
     10'b110_1110011,3'b10_1,
     10'b111_1110011,3'b10_1
 });
-//wen_csr
+//IDU_csr_wen
 always @(*) begin
     casez ({reg_raddr1,csr_sc_w})
-        6'b????_00:wen_csr = 1'b0;
-        6'b0000_10:wen_csr = 1'b0;
-    default: wen_csr = 1'b1;
+        6'b????_00:IDU_csr_wen = 1'b0;
+        6'b0000_10:IDU_csr_wen = 1'b0;
+    default: IDU_csr_wen = 1'b1;
     endcase
 end
-//ren_csr
+//IDU_csr_ren
 always @(*) begin
     casez ({reg_waddr,csr_sc_w})
-        6'b????_00:ren_csr = 1'b0;
-        6'b0000_01:ren_csr = 1'b0;
-    default: ren_csr = 1'b1;
+        6'b????_00:IDU_csr_ren = 1'b0;
+        6'b0000_01:IDU_csr_ren = 1'b0;
+    default: IDU_csr_ren = 1'b1;
     endcase
 end
 endmodule

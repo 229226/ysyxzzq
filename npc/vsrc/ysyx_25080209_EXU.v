@@ -11,6 +11,9 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
     input ecall,mret,
     input [DATA_WID-1:0]mtvec,mepc,
     output [DATA_WID-1:0]pc_next,
+    //中转信号
+    input IDU_reg_wen,IDU_csr_wen,IDU_csr_ren,
+    output EXU_reg_wen,EXU_csr_wen,EXU_csr_ren,
     //EXUstate
     input IDU_valid,LSU_ready,
     output reg EXU_ready,EXU_valid
@@ -85,4 +88,7 @@ MuxKeyWithDefault #(3,2,32) Mux_pc_wdata (pc_next,{ecall,mret},32'b0,{
     2'b10,mtvec
 });
 
+assign EXU_reg_wen = IDU_reg_wen;
+assign EXU_csr_wen = IDU_csr_wen;
+assign EXU_csr_ren = IDU_csr_ren;
 endmodule

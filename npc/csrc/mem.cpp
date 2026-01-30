@@ -41,7 +41,8 @@ int pmem_check(uint32_t addr){
     if(addr >= RESETADDR && addr <= (RESETADDR + mem_size - 1)){
         return 1;
     }
-    printf("地址在mem之外 addr = 0x%08x\n",addr);
+    npc_status.status = NPC_ERROR;
+    printf("npc:地址在mem之外 addr = 0x%08x\n",addr);
     return 0;
 }
 
@@ -66,7 +67,7 @@ int mmio_read(int raddr){
 }
 void mmio_write(int waddr,int wdata,int wmask){
     if(waddr == SERIAL_ADDR){
-        putchar(wdata);
+        putc(wdata, stdout);
         fflush(stdout);
     }
 }
@@ -80,7 +81,6 @@ extern "C" int pmem_read(int raddr){
 
     if(first_time != 1){
         if(!pmem_check(raddr)){
-            npc_status.status = NPC_ABORT;
         return 0;
         }
     }else{

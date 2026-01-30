@@ -1,3 +1,4 @@
+(* keep_hierarchy = "yes" *) // 保持模块层次结构
 module Reg #(WIDTH = 1, RESET_VAL = 0) (
   input clk,
   input rst,
