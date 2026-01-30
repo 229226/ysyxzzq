@@ -1,9 +1,9 @@
 module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   input clk,rst,
-  input valid,wen,
+  input LSU_ren,LSU_wen,
   input [ADDR_WID-1:0]raddr,waddr,
   input [DATA_WID-1:0]wdata,
-  input [7:0]wmask,
+  input [3:0]wmask,
   input [2:0]rmask,
   output reg [DATA_WID-1:0]rdata_out,
   //中转信号
@@ -17,6 +17,8 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
 //0 idle
 //1 wait_ready
 reg LSU_state,nLSU_state;
+wire LSU_work;
+assign LSU_work = LSU_ren | LSU_wen;
 always @(posedge clk) begin
     if(rst) LSU_state <= 0;
     else LSU_state <= nLSU_state;
@@ -37,10 +39,16 @@ end
 always @(*) begin
   case (LSU_state)
     0:begin
-        if(EXU_valid) LSU_valid = 1;
-        else LSU_valid = 0;
-        if(WBU_ready) LSU_ready = 1;
-        else LSU_ready = 0;
+        if(LSU_work == 0) begin
+          if(EXU_valid) LSU_valid = 1;
+          else LSU_valid = 0;
+          if(WBU_ready) LSU_ready = 1;
+          else LSU_ready = 0;
+        end 
+        else begin
+          LSU_valid = 0;
+          LSU_ready = 0;
+        end
     end
     1:begin
         if(EXU_valid) LSU_valid = 1;
@@ -60,24 +68,22 @@ MuxKeyWithDefault #(5,3,32) Mux_mem_wreg (rdata_out,rmask,32'b0,{
     3'b101,{16'b0,rdata[15:0]}                  //lhu
 });     
 
-import "DPI-C" function int pmem_read(input int raddr);
-import "DPI-C" function void pmem_write(
-  input int waddr, input int wdata, input byte wmask);
-
-reg [DATA_WID-1:0]rdata;
+reg wen,ren;
 always @(*) begin
-  if (valid && (nLSU_state == 1)) begin // 有读请求时
-    rdata = pmem_read(raddr);
+  if(nLSU_state == 1) begin 
+    ren = LSU_ren;wen = LSU_wen;
   end
   else begin
-    rdata = 0;
-  end
+    ren = 0;wen = 0;
+  end 
 end
-always @(posedge clk) begin
-  if (valid && wen) begin // 有写请求时
-    if(nLSU_state == 1)pmem_write(waddr, wdata, wmask);
-  end
-end
+wire [DATA_WID-1:0]rdata;
+SRAM_LSU u_SRAM_LSU (
+  .clk(clk),
+  .wen(wen),.ren(ren),
+  .wmask(wmask),
+  .raddr(raddr),.waddr(waddr),.rdata(rdata),.wdata(wdata)
+);
 
 assign	LSU_reg_wen = EXU_reg_wen;
 assign	LSU_csr_wen = EXU_csr_wen;

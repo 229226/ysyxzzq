@@ -37,18 +37,12 @@ ysyx_25080209_IDU #(32,4) IDU (
     .wreg_sw(wreg_sw),
     .pc_rs1 (pc_rs1 ),
     .pc_sw  (pc_sw  ),
-    .reg_raddr1 (reg_raddr1),
-    .reg_raddr2 (reg_raddr2),
-    .reg_waddr  (reg_waddr),
-    .mem_valid  (mem_valid),
-    .mem_wen    (mem_wen),
-    .mem_wmask  (mem_wmask),
-    .mem_rmask  (mem_rmask),
-
-    .IDU_csr_wen    (IDU_csr_wen ),
-    .IDU_csr_ren    (IDU_csr_ren),
-    .csr_w_sw   (csr_w_sw),
-    .csr_zimm   (csr_zimm),
+    .reg_raddr1 (reg_raddr1),.reg_raddr2 (reg_raddr2),.reg_waddr  (reg_waddr),
+    .mem_ren  (mem_ren),.mem_wen    (mem_wen),
+    .mem_wmask  (mem_wmask),.mem_rmask  (mem_rmask),
+    
+    .IDU_csr_wen    (IDU_csr_wen ),.IDU_csr_ren    (IDU_csr_ren),
+    .csr_w_sw   (csr_w_sw),.csr_zimm   (csr_zimm),
 
     .ecall      (ecall),
 
@@ -87,8 +81,8 @@ ysyx_25080209_EXU EXU(
     .IDU_valid(IDU_valid),.LSU_ready(LSU_ready),.EXU_ready(EXU_ready),.EXU_valid(EXU_valid)
 );
 //LSU
-wire mem_valid,mem_wen;
-wire [7:0]mem_wmask;
+wire mem_ren,mem_wen;
+wire [3:0]mem_wmask;
 wire [DATA_WID-1:0]mem_rdata;
 wire [2:0]mem_rmask;
 //中转信号
@@ -97,15 +91,11 @@ wire LSU_reg_wen,LSU_csr_wen,LSU_csr_ren;
 wire LSU_ready,LSU_valid;
 ysyx_25080209_LSU LSU(
     .clk(clk),.rst(rst),
-    .valid(mem_valid),
-    .wen  (mem_wen),
-    .wmask(mem_wmask),
-    .rmask (mem_rmask),
-    .raddr(exu_out),
-    .rdata_out(mem_rdata),
-    .waddr(exu_out),
-    .wdata(reg_rdata2),
-
+    .LSU_ren(mem_ren),.LSU_wen(mem_wen),
+    .wmask(mem_wmask),.rmask (mem_rmask),
+    .raddr(exu_out),.rdata_out(mem_rdata),
+    .waddr(exu_out),.wdata(reg_rdata2),
+    
     .EXU_reg_wen(EXU_reg_wen),.EXU_csr_wen(EXU_csr_wen),.EXU_csr_ren(EXU_csr_ren),
     .LSU_reg_wen(LSU_reg_wen),.LSU_csr_wen(LSU_csr_wen),.LSU_csr_ren(LSU_csr_ren),
 

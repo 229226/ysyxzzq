@@ -37,7 +37,7 @@ always @(*) begin
     endcase
 end
 
-SRAM u_SRAM(
+SRAM_IFU u_SRAM(
     .clk  	(clk   ),
     .addr 	(pc  ),
     .data 	(ins  )

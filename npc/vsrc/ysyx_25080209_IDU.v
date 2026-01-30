@@ -15,8 +15,8 @@ module ysyx_25080209_IDU#(DATA_WID = 32,RADDR_WID = 4)(
     output [RADDR_WID-1:0]reg_waddr,
     output [2:0]wreg_sw,
     //MEM signal
-    output mem_valid,mem_wen,
-    output [7:0]mem_wmask,
+    output mem_ren,mem_wen,
+    output [3:0]mem_wmask,
     output [2:0]mem_rmask,
     //CSR signal
     output IDU_csr_wen,IDU_csr_ren,csr_w_sw,
@@ -204,9 +204,8 @@ MuxKeyWithDefault #(4,7,2) Mux_pc_sw (pc_sw,opcode,2'b0,{
     7'b1100011,2'b10,           //beq,bne,blt.bge,bltu,bgeu
     7'b0000000,2'b11            //无效指令
 });
-//mem_valid
-MuxKeyWithDefault #(2,7,1) Mux_mem_valid (mem_valid,opcode,1'b0,{
-    7'b0100011,1'b1,            //sb,sh,sw
+//mem_ren
+MuxKeyWithDefault #(1,7,1) Mux_mem_valid (mem_ren,opcode,1'b0,{
     7'b0000011,1'b1             //lb,lh,lw,lbu,lhu
 });
 //mem_wen
@@ -214,10 +213,10 @@ MuxKeyWithDefault #(1,7,1) Mux_mem_wen (mem_wen,opcode,1'b0,{
     7'b0100011,1'b1             //sb,sh,sw
 });
 //mem_wmask
-MuxKeyWithDefault #(3,10,8) Mux_mem_wmask (mem_wmask,{func3,opcode},8'b0,{
-    10'b0000100011,8'b00000001, //sb
-    10'b0010100011,8'b00000011, //sh
-    10'b0100100011,8'b00001111  //sw
+MuxKeyWithDefault #(3,10,4) Mux_mem_wmask (mem_wmask,{func3,opcode},4'b0,{
+    10'b0000100011,4'b0001, //sb
+    10'b0010100011,4'b0011, //sh
+    10'b0100100011,4'b1111  //sw
 });
 //mem_rmask
 //000 not write

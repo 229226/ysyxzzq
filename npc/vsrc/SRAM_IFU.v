@@ -1,4 +1,4 @@
-module  SRAM #(ADDR_WID = 32,DATA_WID = 32) (
+module  SRAM_IFU #(ADDR_WID = 32,DATA_WID = 32) (
     input clk,
     input [ADDR_WID-1:0]addr,
     output reg [DATA_WID-1:0]data
