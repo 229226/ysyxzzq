@@ -33,6 +33,7 @@ CFLAGS += -I$(INC_PATH) $(LIBS)
 LDFLAGS += -lreadline
 
 ARGS ?=
+IMG ?=
 
 LIBCAPSTONE = $(NEMU_HOME)/tools/capstone/repo/libcapstone.so.5
 CFLAGS += -I $(NEMU_HOME)/tools/capstone/repo/include
@@ -52,7 +53,7 @@ $(BIN):$(VSRC) $(CSRC) $(OBJ_DIR)
 		
 all: 
 
-NPC_EXEC := $(BIN) $(ARGS)
+NPC_EXEC := $(BIN) $(ARGS) $(IMG)
 
 run: $(BIN)
 	$(call git_commit, "run RTL")

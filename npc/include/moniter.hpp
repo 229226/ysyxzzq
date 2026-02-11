@@ -32,4 +32,5 @@ void print_regs(NPC cpu);
 void moniter_init(int argc , char *argv[]);
 void moniter_loop();
 
+int npc_exit();
 #endif

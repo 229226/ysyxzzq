@@ -12,10 +12,11 @@ NPC npc;
 
 static char *file_img = NULL;
 
-const char * short_opt = "-";
+const char * short_opt = "-b";
 
 struct option long_opts[] =
 {
+    {"batch"    , no_argument      , NULL, 'b'},
     {0      ,0              ,NULL   ,0  },
 };
 
@@ -25,6 +26,7 @@ void init_prase(int argc , char *argv[]){
     {
         switch (rt)
         {
+        case 'b':set_sdb_batch();break;
         case 1:
             file_img = optarg;
             break;
@@ -69,4 +71,17 @@ void moniter_init(int argc , char *argv[]){
 
 void moniter_loop(){
     sdb_mainloop();
+}
+
+int npc_exit(){
+    switch (npc_status.status)
+    {
+    case NPC_QUIT:return 0;
+    case NPC_ABORT:if(npc_status.ebreak_ret == 0) return 0;
+                    else return -1;
+    case NPC_ERROR:return -1;
+    default:
+        break;
+    }
+    return 0;
 }

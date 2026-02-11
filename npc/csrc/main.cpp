@@ -29,5 +29,6 @@ int main(int argc, char *argv[]) {
   moniter_loop();
 
   sim_exit();
-  return 0;
+  
+  return npc_exit();
 }

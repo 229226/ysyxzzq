@@ -4,6 +4,8 @@
 #include "sim.hpp"
 #include "moniter.hpp"
 
+static int batch = 0;
+
 uint32_t str2num(char *strnum,int type){
     char *endptr;
     errno = 0;
@@ -119,7 +121,17 @@ int cmd_handle(char *argv){
     return 0;
 }
 
+void set_sdb_batch(){
+    printf("NPC启用batch模式\n");
+    batch = 1;
+}
+
 void sdb_mainloop(){
+    if(batch){
+        sim_exec(-1);
+        return;
+    }
+
     while(1){
         char *input = NULL;
         if(input != NULL){

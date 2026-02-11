@@ -4,6 +4,7 @@
 #include "common.hpp"
 #include "moniter.hpp"
 
+void set_sdb_batch();
 void sdb_mainloop();
 
 #endif

@@ -72,20 +72,9 @@ void mmio_write(int waddr,int wdata,int wmask){
     }
 }
 
-static int first_time = 1;
-
 extern "C" int pmem_read(int raddr){
     if(mmio_check(raddr)){
         return mmio_read(raddr);
-    }
-
-    if(first_time != 1){
-        if(!pmem_check(raddr)){
-        return 0;
-        }
-    }else{
-        first_time = 0;
-        return 0;
     }
 
     uint32_t addr = (uint32_t)raddr;
