@@ -8,7 +8,7 @@ wire feedback;
 always @(posedge clk) begin
     if(rst) data <= 5'b00001;
     else begin
-        data  <= {data[3:0],feedback};
+        data <= {data[3:0],feedback};
     end
 end
 

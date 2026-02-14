@@ -64,7 +64,7 @@ gdb: $(BIN)
 	$(GDB) -s $(BIN) --args $(NPC_EXEC)
 	
 valgrind: $(BIN)
-	$(VALGRIND) $^ $(ARGS)
+	$(VALGRIND) $(NPC_EXEC)
 
 sim: $(BIN)
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
