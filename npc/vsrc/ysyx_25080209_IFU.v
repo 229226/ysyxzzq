@@ -147,10 +147,10 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
     assign BREADY = 0;
     assign WSTRB = 0;
 //itrace
-    import "DPI-C" function void itrace(int ins);
-    always @(posedge clk) begin
-        itrace(ins);
-    end
+    // import "DPI-C" function void itrace(int ins);
+    // always @(posedge clk) begin
+    //     itrace(ins);
+    // end
 //PC
     always @(posedge clk) begin
         if(rst) pc <= 32'h80000000;
@@ -158,9 +158,9 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
             if(PC_wen)  pc <= pc_next;
         end
     end
-    import "DPI-C" function void read_reg(int val,int num);
-    always @(*) begin
-        read_reg(pc,32);
-    end
+    // import "DPI-C" function void read_reg(int val,int num);
+    // always @(*) begin
+    //     read_reg(pc,32);
+    // end
     assign snpc = pc + 32'h4;
 endmodule

@@ -78,16 +78,16 @@ assign reg_raddr1 = ins[15+RADDR_WID-1:15];
 assign reg_raddr2 = ins[20+RADDR_WID-1:20];
 assign reg_waddr  = ins[7+RADDR_WID-1:7];
 //ebreak
-import "DPI-C" function void ebreak();
-wire status_ebreak;
-always @(*) begin
-    if(status_ebreak) begin
-        ebreak();
-    end
-end
-MuxKeyWithDefault #(1,32,1) Mux_ebreak (status_ebreak,ins,1'b0,{
-    32'b000000000001_00000_000_00000_1110011,1'b1   //ebreak
-});
+// import "DPI-C" function void ebreak();
+// wire status_ebreak;
+// always @(*) begin
+//     if(status_ebreak) begin
+//         ebreak();
+//     end
+// end
+// MuxKeyWithDefault #(1,32,1) Mux_ebreak (status_ebreak,ins,1'b0,{
+//     32'b000000000001_00000_000_00000_1110011,1'b1   //ebreak
+// });
 //ecall
 //0 not ecall
 //1 ecall

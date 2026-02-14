@@ -1,7 +1,7 @@
 module ysyx_25080209_npc #(DATA_WID=32,ADDR_WID=32)(
-    input clk,rst
+    input clk,rst,
+    output [DATA_WID-1:0]ins,pc,snpc
 );
-wire [DATA_WID-1:0]ins,pc,snpc;
 //IFU
     //IFUstate
     wire IFU_valid;
@@ -269,9 +269,9 @@ AXI4_lite_Arbiter u_AXI4_lite_Arbiter(
     .RVALID_s   	(RVALID_s    )
 );
 //diff_test
-import "DPI-C" function void ins_state(int state);
-always @(*) begin
-    if(LSU_valid) ins_state(0); //finished
-    else ins_state(1);          //running
-end
+// import "DPI-C" function void ins_state(int state);
+// always @(*) begin
+//     if(LSU_valid) ins_state(0); //finished
+//     else ins_state(1);          //running
+// end
 endmodule

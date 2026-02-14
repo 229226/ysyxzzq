@@ -1,3 +1,4 @@
+(* keep_hierarchy = "yes" *)  // 保持模块层次结构
 module  SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     //AXI
     input ACLK,ARESETn,
@@ -202,17 +203,24 @@ module  SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         end
     end
 //读写DPI-C
-    import "DPI-C" function int pmem_read(input int raddr);
-    import "DPI-C" function void pmem_write(
-    input int waddr, input int wdata, input byte wmask);
-    always @(posedge ACLK) begin
-        if(!ARESETn) begin
-            RDATA <= 0;
-        end 
-        else begin
-            if(SRAM_ren) RDATA <= pmem_read(ARADDR);
-            else RDATA <= RDATA;
-        end
-        if(SRAM_wen) pmem_write(AWADDR,WDATA,{4'b0000,WSTRB});
-    end
+    // import "DPI-C" function int pmem_read(input int raddr);
+    // import "DPI-C" function void pmem_write(
+    // input int waddr, input int wdata, input byte wmask);
+    // always @(posedge ACLK) begin
+    //     if(!ARESETn) begin
+    //         RDATA <= 0;
+    //     end 
+    //     else begin
+    //         if(SRAM_ren) RDATA <= pmem_read(ARADDR);
+    //         else RDATA <= RDATA;
+    //     end
+    //     if(SRAM_wen) pmem_write(AWADDR,WDATA,{4'b0000,WSTRB});
+    // end
+//SRAM读写
+reg [DATA_WID-1:0] SRAM [2**ADDR_WID-1:0];
+always @(posedge ACLK) begin
+    if(SRAM_ren) RDATA <= SRAM[ARADDR];
+    else RDATA <= RDATA;
+    if(SRAM_wen) SRAM[AWADDR] <= WDATA;
+end
 endmodule
