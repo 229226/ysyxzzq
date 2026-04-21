@@ -1,4 +1,6 @@
 module ysyx_25080209_Xbar #(ADDR_WID = 32,DATA_WID = 32) (
+    input work,
+
     // Master接口
     input ACLK,
     input ARESETn,
@@ -80,7 +82,45 @@ module ysyx_25080209_Xbar #(ADDR_WID = 32,DATA_WID = 32) (
 parameter UART_MASK = 20'h1000_0;
 parameter SRAM_MASK = 8'h80;
 
+//0 idle
+//1 uart
+//2 sram
+reg [1:0] state,nstate;
+always @(posedge ACLK) begin
+    if(!ARESETn) state <= 0;
+    else state <= nstate;
+end
+always @(*) begin
+    case (state)
+    0:begin
+        if(work) begin
+            if(access_uart) nstate = 1;
+            else if(access_sram) nstate = 2;
+            else nstate = 0;
+        end
+        else nstate = 0;
+    end 
+    1:begin
+        if(work) nstate = 1;
+        else nstate = 0;
+    end
+    2:begin
+        if(work) nstate = 2;
+        else nstate = 0;
+    end
+    endcase
+end
+always @(*) begin
+    en_uart = 0;
+    en_sram = 0;
+    case (state)
+    1:en_uart = 1;
+    2:en_sram = 1;
+    endcase
+end
+
 wire access_uart,access_sram;
+reg en_uart,en_sram;
 assign access_uart = (AWADDR[31:12] == UART_MASK) ||
                     (ARADDR[31:12] == UART_MASK);
 assign access_sram = (AWADDR[31:24] == SRAM_MASK) ||
@@ -121,7 +161,7 @@ always @(*) begin
     S1_ARVALID  =   0;
     S1_RREADY   =   0;
 
-    if(access_uart)begin
+    if(en_uart)begin
         S0_AWVALID  =   AWVALID;
         AWREADY     =   S0_AWREADY;
         S0_WVALID   =   WVALID;
@@ -137,7 +177,7 @@ always @(*) begin
         RRESP       =   S0_RRESP;
         RVALID      =   S0_RVALID;
     end
-    else if(access_sram)begin
+    else if(en_sram)begin
         S1_AWVALID  =   AWVALID;
         AWREADY     =   S1_AWREADY;
         S1_WVALID   =   WVALID;

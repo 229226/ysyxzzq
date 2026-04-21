@@ -180,18 +180,6 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .mtvec_out  (mtvec_out),
     .mepc_out   (mepc_out)
 );
-//SRAM
-ysyx_25080209_SRAM_AXI u_SRAM_AXI(
-    .ACLK(clk),.ARESETn(~rst),
-    .AWADDR(AWADDR_s),.ARADDR(ARADDR_s),
-    .AWVALID(AWVALID_s),.WVALID(WVALID_s),
-    .BREADY(BREADY_s),.ARVALID(ARVALID_s),.RREADY(RREADY_s),
-    .AWREADY(AWREADY_s),.WREADY(WREADY_s),.BVALID(BVALID_s),
-    .ARREADY(ARREADY_s),.RVALID(RVALID_s),
-    .WDATA(WDATA_s),.RDATA(RDATA_s),
-    .WSTRB(WSTRB_s),
-    .BRESP(BRESP_s),.RRESP(RRESP_s)
-);
 //AXI4_lite_Arbiter
     wire [ADDR_WID-1:0]AWADDR_m1,ARADDR_m1;
     wire AWVALID_m1,WVALID_m1,BREADY_m1,ARVALID_m1,RREADY_m1;
@@ -207,66 +195,144 @@ ysyx_25080209_SRAM_AXI u_SRAM_AXI(
     wire [3:0]WSTRB_m2;
     wire [1:0]BRESP_m2,RRESP_m2;
 
-    wire [ADDR_WID-1:0]AWADDR_s,ARADDR_s;
-    wire AWVALID_s,WVALID_s,BREADY_s,ARVALID_s,RREADY_s;
-    wire AWREADY_s,WREADY_s,BVALID_s,ARREADY_s,RVALID_s;
-    wire [DATA_WID-1:0]WDATA_s,RDATA_s;
-    wire [3:0]WSTRB_s;
-    wire [1:0]BRESP_s,RRESP_s;
-ysyx_25080209_AXI4_lite_Arbiter u_AXI4_lite_Arbiter(
-    .ACLK       	(clk        ),
-    .ARESETn    	(~rst     ),
-    .AWADDR_m1  	(AWADDR_m1   ),
-    .AWADDR_m2  	(AWADDR_m2   ),
-    .AWVALID_m1 	(AWVALID_m1  ),
-    .AWVALID_m2 	(AWVALID_m2  ),
-    .AWREADY_m1 	(AWREADY_m1  ),
-    .AWREADY_m2 	(AWREADY_m2  ),
-    .AWADDR_s   	(AWADDR_s    ),
-    .AWVALID_s  	(AWVALID_s   ),
-    .AWREADY_s  	(AWREADY_s   ),
-    .WDATA_m1   	(WDATA_m1    ),
-    .WDATA_m2   	(WDATA_m2    ),
-    .WSTRB_m1   	(WSTRB_m1    ),
-    .WSTRB_m2   	(WSTRB_m2    ),
-    .WVALID_m1  	(WVALID_m1   ),
-    .WVALID_m2  	(WVALID_m2   ),
-    .WREADY_m1  	(WREADY_m1   ),
-    .WREADY_m2  	(WREADY_m2   ),
-    .WDATA_s    	(WDATA_s     ),
-    .WSTRB_s    	(WSTRB_s     ),
-    .WVALID_s   	(WVALID_s    ),
-    .WREADY_s   	(WREADY_s    ),
-    .BREADY_m1  	(BREADY_m1   ),
-    .BREADY_m2  	(BREADY_m2   ),
-    .BRESP_m1   	(BRESP_m1    ),
-    .BRESP_m2   	(BRESP_m2    ),
-    .BVALID_m1  	(BVALID_m1   ),
-    .BVALID_m2  	(BVALID_m2   ),
-    .BREADY_s   	(BREADY_s    ),
-    .BRESP_s    	(BRESP_s     ),
-    .BVALID_s   	(BVALID_s    ),
-    .ARADDR_m1  	(ARADDR_m1   ),
-    .ARADDR_m2  	(ARADDR_m2   ),
-    .ARVALID_m1 	(ARVALID_m1  ),
-    .ARVALID_m2 	(ARVALID_m2  ),
-    .ARREADY_m1 	(ARREADY_m1  ),
-    .ARREADY_m2 	(ARREADY_m2  ),
-    .ARADDR_s   	(ARADDR_s    ),
-    .ARVALID_s  	(ARVALID_s   ),
-    .ARREADY_s  	(ARREADY_s   ),
-    .RDATA_m1   	(RDATA_m1    ),
-    .RDATA_m2   	(RDATA_m2    ),
-    .RRESP_m1   	(RRESP_m1    ),
-    .RRESP_m2   	(RRESP_m2    ),
-    .RREADY_m1  	(RREADY_m1   ),
-    .RREADY_m2  	(RREADY_m2   ),
-    .RVALID_m1  	(RVALID_m1   ),
-    .RVALID_m2  	(RVALID_m2   ),
-    .RDATA_s    	(RDATA_s     ),
-    .RRESP_s    	(RRESP_s     ),
-    .RREADY_s   	(RREADY_s    ),
-    .RVALID_s   	(RVALID_s    )
+    wire ACLK_sram,ARESETn_sram;
+    wire [ADDR_WID-1:0] AWADDR_sram, ARADDR_sram;
+    wire AWVALID_sram, WVALID_sram, BREADY_sram, ARVALID_sram, RREADY_sram;
+    wire AWREADY_sram, WREADY_sram, BVALID_sram, ARREADY_sram, RVALID_sram;
+    wire [DATA_WID-1:0] WDATA_sram, RDATA_sram;
+    wire [3:0] WSTRB_sram;
+    wire [1:0] BRESP_sram, RRESP_sram;
+
+    wire ACLK_uart,ARESETn_uart;
+    wire [ADDR_WID-1:0] AWADDR_uart, ARADDR_uart;
+    wire AWVALID_uart, WVALID_uart, BREADY_uart, ARVALID_uart, RREADY_uart;
+    wire AWREADY_uart, WREADY_uart, BVALID_uart, ARREADY_uart, RVALID_uart;
+    wire [DATA_WID-1:0] WDATA_uart, RDATA_uart;
+    wire [3:0] WSTRB_uart;
+    wire [1:0] BRESP_uart, RRESP_uart;
+ysyx_25080209_AXI4_lite_Arbiter_Xbar u_axi_arbiter_xbar (
+    .ACLK        (clk),
+    .ARESETn     (!rst),
+    // Master 0 (IFU)
+    .AWADDR_m0   (AWADDR_m1),
+    .AWVALID_m0  (AWVALID_m1),
+    .AWREADY_m0  (AWREADY_m1),
+    .WDATA_m0    (WDATA_m1),
+    .WSTRB_m0    (WSTRB_m1),
+    .WVALID_m0   (WVALID_m1),
+    .WREADY_m0   (WREADY_m1),
+    .BREADY_m0   (BREADY_m1),
+    .BRESP_m0    (BRESP_m1),
+    .BVALID_m0   (BVALID_m1),
+    .ARADDR_m0   (ARADDR_m1),
+    .ARVALID_m0  (ARVALID_m1),
+    .ARREADY_m0  (ARREADY_m1),
+    .RDATA_m0    (RDATA_m1),
+    .RRESP_m0    (RRESP_m1),
+    .RREADY_m0   (RREADY_m1),
+    .RVALID_m0   (RVALID_m1),
+    // Master 1 (LSU)
+    .AWADDR_m1   (AWADDR_m2),
+    .AWVALID_m1  (AWVALID_m2),
+    .AWREADY_m1  (AWREADY_m2),
+    .WDATA_m1    (WDATA_m2),
+    .WSTRB_m1    (WSTRB_m2),
+    .WVALID_m1   (WVALID_m2),
+    .WREADY_m1   (WREADY_m2),
+    .BREADY_m1   (BREADY_m2),
+    .BRESP_m1    (BRESP_m2),
+    .BVALID_m1   (BVALID_m2),
+    .ARADDR_m1   (ARADDR_m2),
+    .ARVALID_m1  (ARVALID_m2),
+    .ARREADY_m1  (ARREADY_m2),
+    .RDATA_m1    (RDATA_m2),
+    .RRESP_m1    (RRESP_m2),
+    .RREADY_m1   (RREADY_m2),
+    .RVALID_m1   (RVALID_m2),
+    // Slave 0 (UART)
+    .S0_ACLK     (ACLK_uart),
+    .S0_ARESETn  (ARESETn_uart),
+    .S0_AWADDR   (AWADDR_uart),
+    .S0_AWVALID  (AWVALID_uart),
+    .S0_AWREADY  (AWREADY_uart),
+    .S0_WDATA    (WDATA_uart),
+    .S0_WSTRB    (WSTRB_uart),
+    .S0_WVALID   (WVALID_uart),
+    .S0_WREADY   (WREADY_uart),
+    .S0_BREADY   (BREADY_uart),
+    .S0_BRESP    (BRESP_uart),
+    .S0_BVALID   (BVALID_uart),
+    .S0_ARADDR   (ARADDR_uart),
+    .S0_ARVALID  (ARVALID_uart),
+    .S0_ARREADY  (ARREADY_uart),
+    .S0_RDATA    (RDATA_uart),
+    .S0_RRESP    (RRESP_uart),
+    .S0_RREADY   (RREADY_uart),
+    .S0_RVALID   (RVALID_uart),
+    // Slave 1 (SRAM)
+    .S1_ACLK     (ACLK_sram),
+    .S1_ARESETn  (ARESETn_sram),
+    .S1_AWADDR   (AWADDR_sram),
+    .S1_AWVALID  (AWVALID_sram),
+    .S1_AWREADY  (AWREADY_sram),
+    .S1_WDATA    (WDATA_sram),
+    .S1_WSTRB    (WSTRB_sram),
+    .S1_WVALID   (WVALID_sram),
+    .S1_WREADY   (WREADY_sram),
+    .S1_BREADY   (BREADY_sram),
+    .S1_BRESP    (BRESP_sram),
+    .S1_BVALID   (BVALID_sram),
+    .S1_ARADDR   (ARADDR_sram),
+    .S1_ARVALID  (ARVALID_sram),
+    .S1_ARREADY  (ARREADY_sram),
+    .S1_RDATA    (RDATA_sram),
+    .S1_RRESP    (RRESP_sram),
+    .S1_RREADY   (RREADY_sram),
+    .S1_RVALID   (RVALID_sram)
+);
+// UART
+ysyx_25080209_UART u_uart (
+    .ACLK    (ACLK_uart),
+    .ARESETn (ARESETn_uart),
+    .AWADDR  (AWADDR_uart),
+    .AWVALID (AWVALID_uart),
+    .AWREADY (AWREADY_uart),
+    .WDATA   (WDATA_uart),
+    .WSTRB   (WSTRB_uart),
+    .WVALID  (WVALID_uart),
+    .WREADY  (WREADY_uart),
+    .BREADY  (BREADY_uart),
+    .BRESP   (BRESP_uart),
+    .BVALID  (BVALID_uart),
+    .ARADDR  (ARADDR_uart),
+    .ARVALID (ARVALID_uart),
+    .ARREADY (ARREADY_uart),
+    .RDATA   (RDATA_uart),
+    .RRESP   (RRESP_uart),
+    .RREADY  (RREADY_uart),
+    .RVALID  (RVALID_uart)
+);
+// SRAM_AXI
+ysyx_25080209_SRAM_AXI u_SRAM_AXI (
+    .ACLK    (ACLK_sram),
+    .ARESETn (ARESETn_sram),
+    .AWADDR  (AWADDR_sram),
+    .AWVALID (AWVALID_sram),
+    .AWREADY (AWREADY_sram),
+    .WDATA   (WDATA_sram),
+    .WSTRB   (WSTRB_sram),
+    .WVALID  (WVALID_sram),
+    .WREADY  (WREADY_sram),
+    .BREADY  (BREADY_sram),
+    .BRESP   (BRESP_sram),
+    .BVALID  (BVALID_sram),
+    .ARADDR  (ARADDR_sram),
+    .ARVALID (ARVALID_sram),
+    .ARREADY (ARREADY_sram),
+    .RDATA   (RDATA_sram),
+    .RRESP   (RRESP_sram),
+    .RREADY  (RREADY_sram),
+    .RVALID  (RVALID_sram)
 );
 //diff_test
 import "DPI-C" function void ins_state(int state);

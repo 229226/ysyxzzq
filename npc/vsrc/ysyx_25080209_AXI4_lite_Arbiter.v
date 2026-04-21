@@ -1,4 +1,6 @@
 module ysyx_25080209_AXI4_lite_Arbiter #(DATA_WID=32,ADDR_WID=32) (
+    output reg xbar_work,
+
     input ACLK,ARESETn,
     //waddr
         //master
@@ -77,12 +79,13 @@ always @(*) begin
     endcase
 end
 always @(*) begin
+    xbar_work = 0;
     case (Arbiter_state)
-    2'b00:if(m1_req) begin m1_valid = 1;m2_valid = 0;end 
-        else if(m2_req) begin m1_valid = 0;m2_valid = 1;end 
+    2'b00:if(m1_req) begin m1_valid = 1;m2_valid = 0;xbar_work = 1;end 
+        else if(m2_req) begin m1_valid = 0;m2_valid = 1;xbar_work = 1;end 
         else begin m1_valid = 0;m2_valid = 0;end
-    2'b01:begin m1_valid = 1;m2_valid = 0;end  
-    2'b10:begin m1_valid = 0;m2_valid = 1;end
+    2'b01:begin m1_valid = 1;m2_valid = 0;xbar_work = 1;end  
+    2'b10:begin m1_valid = 0;m2_valid = 1;xbar_work = 1;end
     default:begin m1_valid = 0;m2_valid = 0;end
     endcase
 end
@@ -140,6 +143,4 @@ always @(*) begin
     RDATA_m1 = RDATA_s;RRESP_m1 = RRESP_s;RVALID_m1 = RVALID_s;
     RDATA_m2 = RDATA_s;RRESP_m2 = RRESP_s;RVALID_m2 = RVALID_s;
 end
-
-
 endmodule

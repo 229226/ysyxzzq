@@ -66,16 +66,16 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
                         ((IFU_state==2)&&(nIFU_state==0));
 //LSFR测试
     wire [4:0]AR_wt_init,AW_wt_init,W_wt_init,R_rt_init,B_rt_init;
-    // assign AR_wt_init = 0;
-    // assign AW_wt_init = 0;
-    // assign W_wt_init = 0;
-    // assign R_rt_init = 0;
-    // assign B_rt_init = 0;
-    ysyx_25080209_LSFR AR_LSFR(.clk(clk),.rst(rst),.data(AR_wt_init  ));
-    ysyx_25080209_LSFR AW_LSFR(.clk(clk),.rst(rst),.data(AW_wt_init  ));
-    ysyx_25080209_LSFR W_LSFR(.clk(clk),.rst(rst),.data(W_wt_init  ));
-    ysyx_25080209_LSFR R_LSFR(.clk(clk),.rst(rst),.data(R_rt_init  ));
-    ysyx_25080209_LSFR B_LSFR(.clk(clk),.rst(rst),.data(B_rt_init  ));
+    assign AR_wt_init = 0;
+    assign AW_wt_init = 0;
+    assign W_wt_init = 0;
+    assign R_rt_init = 0;
+    assign B_rt_init = 0;
+    // ysyx_25080209_LSFR AR_LSFR(.clk(clk),.rst(rst),.data(AR_wt_init  ));
+    // ysyx_25080209_LSFR AW_LSFR(.clk(clk),.rst(rst),.data(AW_wt_init  ));
+    // ysyx_25080209_LSFR W_LSFR(.clk(clk),.rst(rst),.data(W_wt_init  ));
+    // ysyx_25080209_LSFR R_LSFR(.clk(clk),.rst(rst),.data(R_rt_init  ));
+    // ysyx_25080209_LSFR B_LSFR(.clk(clk),.rst(rst),.data(B_rt_init  ));
     reg [4:0]AR_wtime,AW_wtime,W_wtime,R_rtime,B_rtime;
     always @(posedge clk) begin
         if(rst)begin

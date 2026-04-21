@@ -179,10 +179,10 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     assign SRAM_ren = (R_state == 0) && (nR_state == 1);
     //注:SRAM延迟为SRAM_wt_init/SRAM_rt_init + 1
     wire [4:0]SRAM_wt_init,SRAM_rt_init;
-    // assign SRAM_wt_init = 0;
-    // assign SRAM_rt_init = 0;
-    ysyx_25080209_LSFR SRAM_LSFR1(.clk(ACLK),.rst(!ARESETn),.data(SRAM_wt_init));
-    ysyx_25080209_LSFR SRAM_LSFR2(.clk(ACLK),.rst(!ARESETn),.data(SRAM_rt_init));
+    assign SRAM_wt_init = 0;
+    assign SRAM_rt_init = 0;
+    // ysyx_25080209_LSFR SRAM_LSFR1(.clk(ACLK),.rst(!ARESETn),.data(SRAM_wt_init));
+    // ysyx_25080209_LSFR SRAM_LSFR2(.clk(ACLK),.rst(!ARESETn),.data(SRAM_rt_init));
     reg [4:0] SRAM_wtime,SRAM_rtime;
     wire SRAM_wt_wk,SRAM_rt_wk;
     assign SRAM_wt_wk = ((B_state==0)&&(nB_state==1)) || ((B_state==1)&&(nB_state==1));
