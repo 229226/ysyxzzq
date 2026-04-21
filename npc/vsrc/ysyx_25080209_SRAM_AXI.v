@@ -1,5 +1,5 @@
 (* keep_hierarchy = "yes" *)  // 保持模块层次结构
-module  SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
+module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     //AXI
     input ACLK,ARESETn,
     //waddr
@@ -181,8 +181,8 @@ module  SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     wire [4:0]SRAM_wt_init,SRAM_rt_init;
     // assign SRAM_wt_init = 0;
     // assign SRAM_rt_init = 0;
-    LSFR SRAM_LSFR1(.clk(ACLK),.rst(!ARESETn),.data(SRAM_wt_init));
-    LSFR SRAM_LSFR2(.clk(ACLK),.rst(!ARESETn),.data(SRAM_rt_init));
+    ysyx_25080209_LSFR SRAM_LSFR1(.clk(ACLK),.rst(!ARESETn),.data(SRAM_wt_init));
+    ysyx_25080209_LSFR SRAM_LSFR2(.clk(ACLK),.rst(!ARESETn),.data(SRAM_rt_init));
     reg [4:0] SRAM_wtime,SRAM_rtime;
     wire SRAM_wt_wk,SRAM_rt_wk;
     assign SRAM_wt_wk = ((B_state==0)&&(nB_state==1)) || ((B_state==1)&&(nB_state==1));
@@ -203,24 +203,24 @@ module  SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         end
     end
 //读写DPI-C
-    // import "DPI-C" function int pmem_read(input int raddr);
-    // import "DPI-C" function void pmem_write(
-    // input int waddr, input int wdata, input byte wmask);
-    // always @(posedge ACLK) begin
-    //     if(!ARESETn) begin
-    //         RDATA <= 0;
-    //     end 
-    //     else begin
-    //         if(SRAM_ren) RDATA <= pmem_read(ARADDR);
-    //         else RDATA <= RDATA;
-    //     end
-    //     if(SRAM_wen) pmem_write(AWADDR,WDATA,{4'b0000,WSTRB});
-    // end
+    import "DPI-C" function int pmem_read(input int raddr);
+    import "DPI-C" function void pmem_write(
+    input int waddr, input int wdata, input byte wmask);
+    always @(posedge ACLK) begin
+        if(!ARESETn) begin
+            RDATA <= 0;
+        end 
+        else begin
+            if(SRAM_ren) RDATA <= pmem_read(ARADDR);
+            else RDATA <= RDATA;
+        end
+        if(SRAM_wen) pmem_write(AWADDR,WDATA,{4'b0000,WSTRB});
+    end
 //SRAM读写
-reg [DATA_WID-1:0] SRAM [2**ADDR_WID-1:0];
-always @(posedge ACLK) begin
-    if(SRAM_ren) RDATA <= SRAM[ARADDR];
-    else RDATA <= RDATA;
-    if(SRAM_wen) SRAM[AWADDR] <= WDATA;
-end
+    // reg [DATA_WID-1:0] SRAM [2**ADDR_WID-1:0];
+    // always @(posedge ACLK) begin
+    //     if(SRAM_ren) RDATA <= SRAM[ARADDR];
+    //     else RDATA <= RDATA;
+    //     if(SRAM_wen) SRAM[AWADDR] <= WDATA;
+    // end
 endmodule

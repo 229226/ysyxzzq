@@ -1,4 +1,4 @@
-module AXI4_lite_Arbiter #(DATA_WID=32,ADDR_WID=32) (
+module ysyx_25080209_AXI4_lite_Arbiter #(DATA_WID=32,ADDR_WID=32) (
     input ACLK,ARESETn,
     //waddr
         //master
@@ -140,4 +140,6 @@ always @(*) begin
     RDATA_m1 = RDATA_s;RRESP_m1 = RRESP_s;RVALID_m1 = RVALID_s;
     RDATA_m2 = RDATA_s;RRESP_m2 = RRESP_s;RVALID_m2 = RVALID_s;
 end
+
+
 endmodule

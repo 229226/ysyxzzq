@@ -1,4 +1,4 @@
-module LSFR(
+module ysyx_25080209_LSFR(
     input clk,rst,
     output reg [4:0]data
 );

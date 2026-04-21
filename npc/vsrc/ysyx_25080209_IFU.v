@@ -71,11 +71,11 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
     // assign W_wt_init = 0;
     // assign R_rt_init = 0;
     // assign B_rt_init = 0;
-    LSFR AR_LSFR(.clk(clk),.rst(rst),.data(AR_wt_init  ));
-    LSFR AW_LSFR(.clk(clk),.rst(rst),.data(AW_wt_init  ));
-    LSFR W_LSFR(.clk(clk),.rst(rst),.data(W_wt_init  ));
-    LSFR R_LSFR(.clk(clk),.rst(rst),.data(R_rt_init  ));
-    LSFR B_LSFR(.clk(clk),.rst(rst),.data(B_rt_init  ));
+    ysyx_25080209_LSFR AR_LSFR(.clk(clk),.rst(rst),.data(AR_wt_init  ));
+    ysyx_25080209_LSFR AW_LSFR(.clk(clk),.rst(rst),.data(AW_wt_init  ));
+    ysyx_25080209_LSFR W_LSFR(.clk(clk),.rst(rst),.data(W_wt_init  ));
+    ysyx_25080209_LSFR R_LSFR(.clk(clk),.rst(rst),.data(R_rt_init  ));
+    ysyx_25080209_LSFR B_LSFR(.clk(clk),.rst(rst),.data(B_rt_init  ));
     reg [4:0]AR_wtime,AW_wtime,W_wtime,R_rtime,B_rtime;
     always @(posedge clk) begin
         if(rst)begin
@@ -147,10 +147,10 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
     assign BREADY = 0;
     assign WSTRB = 0;
 //itrace
-    // import "DPI-C" function void itrace(int ins);
-    // always @(posedge clk) begin
-    //     itrace(ins);
-    // end
+    import "DPI-C" function void itrace(int ins);
+    always @(posedge clk) begin
+        itrace(ins);
+    end
 //PC
     always @(posedge clk) begin
         if(rst) pc <= 32'h80000000;
@@ -158,9 +158,9 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
             if(PC_wen)  pc <= pc_next;
         end
     end
-    // import "DPI-C" function void read_reg(int val,int num);
-    // always @(*) begin
-    //     read_reg(pc,32);
-    // end
+    import "DPI-C" function void read_reg(int val,int num);
+    always @(*) begin
+        read_reg(pc,32);
+    end
     assign snpc = pc + 32'h4;
 endmodule

@@ -181,7 +181,7 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .mepc_out   (mepc_out)
 );
 //SRAM
-SRAM_AXI u_SRAM_AXI(
+ysyx_25080209_SRAM_AXI u_SRAM_AXI(
     .ACLK(clk),.ARESETn(~rst),
     .AWADDR(AWADDR_s),.ARADDR(ARADDR_s),
     .AWVALID(AWVALID_s),.WVALID(WVALID_s),
@@ -213,7 +213,7 @@ SRAM_AXI u_SRAM_AXI(
     wire [DATA_WID-1:0]WDATA_s,RDATA_s;
     wire [3:0]WSTRB_s;
     wire [1:0]BRESP_s,RRESP_s;
-AXI4_lite_Arbiter u_AXI4_lite_Arbiter(
+ysyx_25080209_AXI4_lite_Arbiter u_AXI4_lite_Arbiter(
     .ACLK       	(clk        ),
     .ARESETn    	(~rst     ),
     .AWADDR_m1  	(AWADDR_m1   ),
@@ -269,9 +269,9 @@ AXI4_lite_Arbiter u_AXI4_lite_Arbiter(
     .RVALID_s   	(RVALID_s    )
 );
 //diff_test
-// import "DPI-C" function void ins_state(int state);
-// always @(*) begin
-//     if(LSU_valid) ins_state(0); //finished
-//     else ins_state(1);          //running
-// end
+import "DPI-C" function void ins_state(int state);
+always @(*) begin
+    if(LSU_valid) ins_state(0); //finished
+    else ins_state(1);          //running
+end
 endmodule

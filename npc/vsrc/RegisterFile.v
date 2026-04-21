@@ -19,13 +19,13 @@ always @(posedge clk) begin
   if (wen) rf[waddr] <= wdata_in;
 end
 
-// import "DPI-C" function void read_reg(int val,int num);
-// integer i;
-// always @(*) begin
-//   for(i = 0 ; i < 2**ADDR_WIDTH ; i++)begin
-//     read_reg(rf[i],i);
-//   end
-// end
+import "DPI-C" function void read_reg(int val,int num);
+integer i;
+always @(*) begin
+  for(i = 0 ; i < 2**ADDR_WIDTH ; i++)begin
+    read_reg(rf[i],i);
+  end
+end
 
 assign rdata1 = rf[raddr1];
 assign rdata2 = rf[raddr2];
