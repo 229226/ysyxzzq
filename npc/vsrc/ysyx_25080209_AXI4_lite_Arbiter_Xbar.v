@@ -105,7 +105,8 @@ ysyx_25080209_AXI4_lite_Arbiter #(
     .DATA_WID(DATA_WID),
     .ADDR_WID(ADDR_WID)
 ) u_arbiter (
-    .xbar_work(xbar_work),
+    .arbiter_valid(arbiter_valid),
+    .xbar_valid(xbar_valid),
 
     .ACLK        (ACLK),
     .ARESETn     (ARESETn),
@@ -165,13 +166,14 @@ ysyx_25080209_AXI4_lite_Arbiter #(
     .RVALID_s    (RVALID_s)
 );
 
-wire xbar_work;
+wire arbiter_valid,xbar_valid;
 
 ysyx_25080209_Xbar #(
     .ADDR_WID(ADDR_WID),
     .DATA_WID(DATA_WID)
 ) u_xbar (
-    .work(xbar_work),
+    .arbiter_valid(arbiter_valid),
+    .xbar_valid(xbar_valid),
 
     .ACLK        (ACLK),
     .ARESETn     (ARESETn),

@@ -1,5 +1,6 @@
 module ysyx_25080209_Xbar #(ADDR_WID = 32,DATA_WID = 32) (
-    input work,
+    input arbiter_valid,
+    output reg xbar_valid,
 
     // Master接口
     input ACLK,
@@ -80,64 +81,43 @@ module ysyx_25080209_Xbar #(ADDR_WID = 32,DATA_WID = 32) (
     input S1_RVALID
 );
 parameter UART_MASK = 20'h1000_0;
-parameter SRAM_MASK = 8'h80;
+parameter SRAM_MASK = 1'b1;
 
-//0 idle
-//1 uart
-//2 sram
-reg [1:0] state,nstate;
 always @(posedge ACLK) begin
-    if(!ARESETn) state <= 0;
-    else state <= nstate;
-end
-always @(*) begin
-    case (state)
-    0:begin
-        if(work) begin
-            if(access_uart) nstate = 1;
-            else if(access_sram) nstate = 2;
-            else nstate = 0;
-        end
-        else nstate = 0;
-    end 
-    1:begin
-        if(work) nstate = 1;
-        else nstate = 0;
+    xbar_valid <=0;
+    en_uart <= 0;en_sram <= 0;
+    if(arbiter_valid) begin
+        if(access_uart) begin
+            en_uart <= 1;
+            xbar_valid <=1;
+        end 
+        else if(access_sram) begin
+            en_sram <= 1;
+            xbar_valid <=1;
+        end 
     end
-    2:begin
-        if(work) nstate = 2;
-        else nstate = 0;
-    end
-    endcase
-end
-always @(*) begin
-    en_uart = 0;
-    en_sram = 0;
-    case (state)
-    1:en_uart = 1;
-    2:en_sram = 1;
-    endcase
 end
 
 wire access_uart,access_sram;
 reg en_uart,en_sram;
 assign access_uart = (AWADDR[31:12] == UART_MASK) ||
                     (ARADDR[31:12] == UART_MASK);
-assign access_sram = (AWADDR[31:24] == SRAM_MASK) ||
-                    (ARADDR[31:24] == SRAM_MASK);
+assign access_sram = (AWADDR[31] == SRAM_MASK) ||
+                    (ARADDR[31] == SRAM_MASK);
 
 always @(*) begin
     S0_ACLK = ACLK;
     S1_ACLK = ACLK;
     S0_ARESETn = ARESETn;
     S1_ARESETn = ARESETn;
-    S0_AWADDR   =   AWADDR;
-    S1_AWADDR   =   AWADDR;
-    S0_WDATA    =   WDATA;
-    S1_WDATA    =   WDATA;
-    S0_WSTRB    =   WSTRB;
-    S1_WSTRB    =   WSTRB;
-    
+   
+    S0_AWADDR   =   0;
+    S0_WDATA    =   0;
+    S0_WSTRB    =   0;
+    S1_AWADDR   =   0;
+    S1_WDATA    =   0;
+    S1_WSTRB    =   0;
+
     AWREADY     =   0;
     WREADY      =   0;
     BVALID      =   0;
@@ -163,11 +143,17 @@ always @(*) begin
 
     if(en_uart)begin
         S0_AWVALID  =   AWVALID;
+        S0_AWADDR   =   AWADDR;
         AWREADY     =   S0_AWREADY;
+
         S0_WVALID   =   WVALID;
+        S0_WDATA    =   WDATA;
         WREADY      =   S0_WREADY;
+
         S0_BREADY   =   BREADY;
+        S0_WSTRB    =   WSTRB;
         BRESP       =   S0_BRESP;
+
         BVALID      =   S0_BVALID;
         S0_ARADDR   =   ARADDR;
         S0_ARVALID  =   ARVALID;
@@ -179,11 +165,17 @@ always @(*) begin
     end
     else if(en_sram)begin
         S1_AWVALID  =   AWVALID;
+        S1_AWADDR   =   AWADDR;
         AWREADY     =   S1_AWREADY;
+
         S1_WVALID   =   WVALID;
+        S1_WDATA    =   WDATA;
         WREADY      =   S1_WREADY;
+
         S1_BREADY   =   BREADY;
+        S1_WSTRB    =   WSTRB;
         BVALID      =   S1_BVALID;
+
         BRESP       =   S1_BRESP;
         S1_ARADDR   =   ARADDR;
         S1_ARVALID  =   ARVALID;
@@ -192,9 +184,6 @@ always @(*) begin
         RDATA       =   S1_RDATA;
         RRESP       =   S1_RRESP;
         RVALID      =   S1_RVALID;
-    end
-    else begin
-
     end
 end
 
