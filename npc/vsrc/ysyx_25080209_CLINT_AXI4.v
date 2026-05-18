@@ -1,5 +1,4 @@
-(* keep_hierarchy = "yes" *)  // 保持模块层次结构
-module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
+module ysyx_25080209_CLINT_AXI4 #(ADDR_WID = 32, DATA_WID = 32)(
     //AXI
     input ACLK,ARESETn,
     //waddr
@@ -29,6 +28,11 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
 );
 //AXI4-lite 从 
 //米利状态机
+    //从设备控制
+        wire w_req,r_req;
+        wire w_fin,r_fin;
+        assign w_req = (nAW_state == 1) && (nW_state == 1);
+        assign r_req = nAR_state == 1;
     //waddr 
         //0 wait valid
         //1 wait work
@@ -39,7 +43,7 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
         reg W_state,nW_state;
     //wres
         //00 wait wdata
-        //01 wait sram and ready
+        //01 wait work and ready
         //10 wait ready
         reg [1:0]B_state,nB_state;
     //raddr
@@ -48,7 +52,7 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
         reg AR_state,nAR_state;
     //rdata
         //00 wait raddr
-        //01 wait sram and ready
+        //01 wait work and ready
         //10 wait ready
         reg [1:0]R_state,nR_state;
     always @(posedge ACLK) begin
@@ -65,21 +69,25 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
         case (AW_state)
             0:if(AWVALID) nAW_state = 1;
             else nAW_state = 0;
-            1:nAW_state = 0;
+            1:if(w_fin) nAW_state = 0;
+            else nAW_state = 1;
             default:nAW_state = 0;
         endcase
         case (W_state)
             0:if(WVALID) nW_state = 1;
             else nW_state = 0;
-            1:nW_state = 0;
+            1:if(w_fin) nW_state = 0;
+            else nW_state = 1;
             default:nAW_state = 0;
         endcase
         case (B_state)
             2'b00:if((AW_state==1)&(W_state==1))
                     nB_state = 2'b01; 
                 else nB_state = 2'b00;
-            2'b01:if(BREADY) nB_state = 2'b00;
+            2'b01:if(w_fin)
+                    if(BREADY) nB_state = 2'b00;
                     else nB_state = 2'b10;
+                else nB_state = 2'b01;
             2'b10:if(BREADY) nB_state = 2'b00;
                     else nB_state = 2'b10;
             default:nB_state = 2'b00;
@@ -98,8 +106,10 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
                 end
                 else nR_state = 2'b00;
             end
-            2'b01:if(RREADY) nR_state = 2'b00;
-                else nR_state = 2'b10;
+            2'b01:if(r_fin)
+                    if(RREADY) nR_state = 2'b00;
+                    else nR_state = 2'b10;
+                else nR_state = 2'b01;
             2'b10:if(RREADY) nR_state = 2'b00;
                     else nR_state = 2'b10;
             default:nR_state = 2'b00;
@@ -122,7 +132,8 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
                 BRESP = 2'b0;
             end
             2'b01:begin
-                BVALID = 1;
+                if(w_fin) BVALID = 1;
+                else BVALID = 0;
                 BRESP = 2'b0;
             end
             2'b10:begin
@@ -148,7 +159,8 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
                 RRESP = 2'b0;
             end
             2'b01:begin
-                RVALID = 1;
+                if(r_fin) RVALID = 1;
+                else RVALID = 0;
                 RRESP = 2'b0;
             end
             2'b10:begin
@@ -161,13 +173,28 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
             end
         endcase
     end
-//UART控制信号
-    reg [DATA_WID-1:0]UART_data;
-    assign UART_data = WDATA;
 
-    reg UART_wen,UART_ren;
-    assign UART_wen = (B_state==0)&&(nB_state==1);
-    always @(posedge ACLK) begin
-        if(UART_wen) $write("%c",UART_data[7:0]);
+assign w_fin = 1;
+assign r_fin = 1;
+
+reg [DATA_WID*2-1:0] mtime;
+always @(posedge ACLK) begin
+    mtime <= 0;
+    RDATA <= 0;
+
+    if(!ARESETn) begin
+        mtime <= 0;
+        RDATA <= 0;
+    end 
+    else begin
+        mtime <= mtime + 1;
+        if(r_req) begin
+            case (ARADDR[2:0])
+            3'b000:RDATA <= mtime[DATA_WID-1:0];
+            3'b100:RDATA <= mtime[DATA_WID*2-1:DATA_WID];
+            default:;
+            endcase
+        end
     end
+end
 endmodule

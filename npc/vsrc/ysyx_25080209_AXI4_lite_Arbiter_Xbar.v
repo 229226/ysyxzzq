@@ -80,7 +80,28 @@ module ysyx_25080209_AXI4_lite_Arbiter_Xbar #(DATA_WID = 32, ADDR_WID = 32) (
     input  [DATA_WID-1:0] S1_RDATA,
     input  [1:0]          S1_RRESP,
     output                S1_RREADY,
-    input                 S1_RVALID
+    input                 S1_RVALID,
+
+    // Slave 2 接口
+    output                S2_ACLK,
+    output                S2_ARESETn,
+    output [ADDR_WID-1:0] S2_AWADDR,
+    output                S2_AWVALID,
+    input                 S2_AWREADY,
+    output [DATA_WID-1:0] S2_WDATA,
+    output [3:0]          S2_WSTRB,
+    output                S2_WVALID,
+    input                 S2_WREADY,
+    output                S2_BREADY,
+    input  [1:0]          S2_BRESP,
+    input                 S2_BVALID,
+    output [ADDR_WID-1:0] S2_ARADDR,
+    output                S2_ARVALID,
+    input                 S2_ARREADY,
+    input  [DATA_WID-1:0] S2_RDATA,
+    input  [1:0]          S2_RRESP,
+    output                S2_RREADY,
+    input                 S2_RVALID
 );
 
 wire [ADDR_WID-1:0] AWADDR_s;
@@ -101,13 +122,14 @@ wire [1:0]          RRESP_s;
 wire                 RREADY_s;
 wire                 RVALID_s;
 
+wire arbiter_valid, xbar_valid;
+
 ysyx_25080209_AXI4_lite_Arbiter #(
     .DATA_WID(DATA_WID),
     .ADDR_WID(ADDR_WID)
 ) u_arbiter (
     .arbiter_valid(arbiter_valid),
     .xbar_valid(xbar_valid),
-
     .ACLK        (ACLK),
     .ARESETn     (ARESETn),
     // Master 0
@@ -166,15 +188,13 @@ ysyx_25080209_AXI4_lite_Arbiter #(
     .RVALID_s    (RVALID_s)
 );
 
-wire arbiter_valid,xbar_valid;
-
 ysyx_25080209_Xbar #(
     .ADDR_WID(ADDR_WID),
     .DATA_WID(DATA_WID)
 ) u_xbar (
     .arbiter_valid(arbiter_valid),
     .xbar_valid(xbar_valid),
-
+    
     .ACLK        (ACLK),
     .ARESETn     (ARESETn),
     // Master 接口
@@ -234,7 +254,27 @@ ysyx_25080209_Xbar #(
     .S1_RDATA    (S1_RDATA),
     .S1_RRESP    (S1_RRESP),
     .S1_RREADY   (S1_RREADY),
-    .S1_RVALID   (S1_RVALID)
+    .S1_RVALID   (S1_RVALID),
+    // Slave 2
+    .S2_ACLK     (S2_ACLK),
+    .S2_ARESETn  (S2_ARESETn),
+    .S2_AWADDR   (S2_AWADDR),
+    .S2_AWVALID  (S2_AWVALID),
+    .S2_AWREADY  (S2_AWREADY),
+    .S2_WDATA    (S2_WDATA),
+    .S2_WSTRB    (S2_WSTRB),
+    .S2_WVALID   (S2_WVALID),
+    .S2_WREADY   (S2_WREADY),
+    .S2_BREADY   (S2_BREADY),
+    .S2_BRESP    (S2_BRESP),
+    .S2_BVALID   (S2_BVALID),
+    .S2_ARADDR   (S2_ARADDR),
+    .S2_ARVALID  (S2_ARVALID),
+    .S2_ARREADY  (S2_ARREADY),
+    .S2_RDATA    (S2_RDATA),
+    .S2_RRESP    (S2_RRESP),
+    .S2_RREADY   (S2_RREADY),
+    .S2_RVALID   (S2_RVALID)
 );
 
 endmodule

@@ -180,6 +180,12 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .mtvec_out  (mtvec_out),
     .mepc_out   (mepc_out)
 );
+//diff_test
+    import "DPI-C" function void ins_state(int state);
+    always @(*) begin
+        if(LSU_valid) ins_state(0); //finished
+        else ins_state(1);          //running
+    end
 //AXI4_lite_Arbiter
     wire [ADDR_WID-1:0]AWADDR_m1,ARADDR_m1;
     wire AWVALID_m1,WVALID_m1,BREADY_m1,ARVALID_m1,RREADY_m1;
@@ -210,6 +216,14 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     wire [DATA_WID-1:0] WDATA_uart, RDATA_uart;
     wire [3:0] WSTRB_uart;
     wire [1:0] BRESP_uart, RRESP_uart;
+
+    wire ACLK_s2,ARESETn_s2;
+    wire [ADDR_WID-1:0] AWADDR_s2, ARADDR_s2;
+    wire AWVALID_s2, WVALID_s2, BREADY_s2, ARVALID_s2, RREADY_s2;
+    wire AWREADY_s2, WREADY_s2, BVALID_s2, ARREADY_s2, RVALID_s2;
+    wire [DATA_WID-1:0] WDATA_s2, RDATA_s2;
+    wire [3:0] WSTRB_s2;
+    wire [1:0] BRESP_s2, RRESP_s2;
 ysyx_25080209_AXI4_lite_Arbiter_Xbar u_axi_arbiter_xbar (
     .ACLK        (clk),
     .ARESETn     (!rst),
@@ -288,7 +302,27 @@ ysyx_25080209_AXI4_lite_Arbiter_Xbar u_axi_arbiter_xbar (
     .S1_RDATA    (RDATA_sram),
     .S1_RRESP    (RRESP_sram),
     .S1_RREADY   (RREADY_sram),
-    .S1_RVALID   (RVALID_sram)
+    .S1_RVALID   (RVALID_sram),
+    // Slave 2
+    .S2_ACLK     (ACLK_s2),
+    .S2_ARESETn  (ARESETn_s2),
+    .S2_AWADDR   (AWADDR_s2),
+    .S2_AWVALID  (AWVALID_s2),
+    .S2_AWREADY  (AWREADY_s2),
+    .S2_WDATA    (WDATA_s2),
+    .S2_WSTRB    (WSTRB_s2),
+    .S2_WVALID   (WVALID_s2),
+    .S2_WREADY   (WREADY_s2),
+    .S2_BREADY   (BREADY_s2),
+    .S2_BRESP    (BRESP_s2),
+    .S2_BVALID   (BVALID_s2),
+    .S2_ARADDR   (ARADDR_s2),
+    .S2_ARVALID  (ARVALID_s2),
+    .S2_ARREADY  (ARREADY_s2),
+    .S2_RDATA    (RDATA_s2),
+    .S2_RRESP    (RRESP_s2),
+    .S2_RREADY   (RREADY_s2),
+    .S2_RVALID   (RVALID_s2)
 );
 // UART
 ysyx_25080209_UART u_uart (
@@ -334,10 +368,26 @@ ysyx_25080209_SRAM_AXI u_SRAM_AXI (
     .RREADY  (RREADY_sram),
     .RVALID  (RVALID_sram)
 );
-//diff_test
-import "DPI-C" function void ins_state(int state);
-always @(*) begin
-    if(LSU_valid) ins_state(0); //finished
-    else ins_state(1);          //running
-end
+//CLINT
+ysyx_25080209_CLINT_AXI4 u_ysyx_25080209_CLINT_AXI4(
+    .ACLK    (ACLK_s2),
+    .ARESETn (ARESETn_s2),
+    .AWADDR  (AWADDR_s2),
+    .AWVALID (AWVALID_s2),
+    .AWREADY (AWREADY_s2),
+    .WDATA   (WDATA_s2),
+    .WSTRB   (WSTRB_s2),
+    .WVALID  (WVALID_s2),
+    .WREADY  (WREADY_s2),
+    .BREADY  (BREADY_s2),
+    .BRESP   (BRESP_s2),
+    .BVALID  (BVALID_s2),
+    .ARADDR  (ARADDR_s2),
+    .ARVALID (ARVALID_s2),
+    .ARREADY (ARREADY_s2),
+    .RDATA   (RDATA_s2),
+    .RRESP   (RRESP_s2),
+    .RREADY  (RREADY_s2),
+    .RVALID  (RVALID_s2)
+);
 endmodule
