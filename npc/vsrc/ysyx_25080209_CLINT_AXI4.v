@@ -1,30 +1,36 @@
 module ysyx_25080209_CLINT_AXI4 #(ADDR_WID = 32, DATA_WID = 32)(
-    //AXI
-    input ACLK,ARESETn,
-    //waddr
-    input [ADDR_WID-1:0]AWADDR,
-    //input [2:0]AWPROT,
-    input AWVALID,
-    output reg AWREADY,
-    //wdata
-    input [DATA_WID-1:0]WDATA,
-    input [3:0]WSTRB,
-    input WVALID,
-    output reg WREADY,
-    //wresponse
-    input BREADY,
-    output [1:0]BRESP,
-    output BVALID,
-    //raddr
-    input [ADDR_WID-1:0]ARADDR,
-    //input [2:0]ARPROT,
-    input ARVALID,
-    output ARREADY,
-    //rdata
-    output reg [DATA_WID-1:0]RDATA,
-    output [1:0]RRESP,
-    input RREADY,
-    output RVALID
+    input clk,rst,
+
+//AXI4接口 slave
+    output reg              io_slave_awready,
+    input                   io_slave_awvalid,
+    input  [ADDR_WID-1:0]   io_slave_awaddr,
+    input  [3:0]            io_slave_awid,
+    input  [7:0]            io_slave_awlen,
+    input  [2:0]            io_slave_awsize,
+    input  [1:0]            io_slave_awburst,
+    output                  io_slave_wready,
+    input                   io_slave_wvalid,
+    input  [DATA_WID-1:0]   io_slave_wdata,
+    input  [3:0]            io_slave_wstrb,
+    input                   io_slave_wlast,
+    input                   io_slave_bready,
+    output                  io_slave_bvalid,
+    output [1:0]            io_slave_bresp,
+    output [3:0]            io_slave_bid,
+    output                  io_slave_arready,
+    input                   io_slave_arvalid,
+    input  [ADDR_WID-1:0]   io_slave_araddr,
+    input  [3:0]            io_slave_arid,
+    input  [7:0]            io_slave_arlen,
+    input  [2:0]            io_slave_arsize,
+    input  [1:0]            io_slave_arburst,
+    input                   io_slave_rready,
+    output                  io_slave_rvalid,
+    output [1:0]            io_slave_rresp,
+    output [DATA_WID-1:0]   io_slave_rdata,
+    output                  io_slave_rlast,
+    output [3:0]            io_slave_rid
 );
 //AXI4-lite 从 
 //米利状态机
@@ -55,8 +61,8 @@ module ysyx_25080209_CLINT_AXI4 #(ADDR_WID = 32, DATA_WID = 32)(
         //01 wait work and ready
         //10 wait ready
         reg [1:0]R_state,nR_state;
-    always @(posedge ACLK) begin
-        if(!ARESETn) begin
+    always @(posedge clk) begin
+        if(rst) begin
             AW_state <= 1'b0;W_state <= 1'b0;B_state <= 2'b0;
             AR_state <= 1'b0;R_state <= 2'b0; 
         end 
@@ -67,14 +73,14 @@ module ysyx_25080209_CLINT_AXI4 #(ADDR_WID = 32, DATA_WID = 32)(
     end
     always @(*) begin
         case (AW_state)
-            0:if(AWVALID) nAW_state = 1;
+            0:if(io_slave_awvalid) nAW_state = 1;
             else nAW_state = 0;
             1:if(w_fin) nAW_state = 0;
             else nAW_state = 1;
             default:nAW_state = 0;
         endcase
         case (W_state)
-            0:if(WVALID) nW_state = 1;
+            0:if(io_slave_wvalid) nW_state = 1;
             else nW_state = 0;
             1:if(w_fin) nW_state = 0;
             else nW_state = 1;
@@ -85,91 +91,91 @@ module ysyx_25080209_CLINT_AXI4 #(ADDR_WID = 32, DATA_WID = 32)(
                     nB_state = 2'b01; 
                 else nB_state = 2'b00;
             2'b01:if(w_fin)
-                    if(BREADY) nB_state = 2'b00;
+                    if(io_slave_rready) nB_state = 2'b00;
                     else nB_state = 2'b10;
                 else nB_state = 2'b01;
-            2'b10:if(BREADY) nB_state = 2'b00;
+            2'b10:if(io_slave_rready) nB_state = 2'b00;
                     else nB_state = 2'b10;
             default:nB_state = 2'b00;
         endcase
         case (AR_state)
             1'b0:begin 
-                if(ARVALID) nAR_state = 1'b1;
+                if(io_slave_arvalid) nAR_state = 1'b1;
                 else nAR_state = 1'b0;
             end 
             1'b1:nAR_state = 1'b0;
         endcase
         case (R_state)
             2'b00:begin
-                if(ARVALID && ARREADY) begin
+                if(io_slave_arvalid && io_slave_arready) begin
                     nR_state = 2'b01;
                 end
                 else nR_state = 2'b00;
             end
             2'b01:if(r_fin)
-                    if(RREADY) nR_state = 2'b00;
+                    if(io_slave_rready) nR_state = 2'b00;
                     else nR_state = 2'b10;
                 else nR_state = 2'b01;
-            2'b10:if(RREADY) nR_state = 2'b00;
+            2'b10:if(io_slave_rready) nR_state = 2'b00;
                     else nR_state = 2'b10;
             default:nR_state = 2'b00;
         endcase
     end
     always @(*) begin
         case (AW_state)
-            0:AWREADY=1;
-            1:AWREADY=0;
-            default:AWREADY=0;
+            0:io_slave_awready=1;
+            1:io_slave_awready=0;
+            default:io_slave_awready=0;
         endcase
         case (W_state)
-            0:WREADY = 1;
-            1:WREADY = 0;
-            default:WREADY = 0;
+            0:io_slave_wready = 1;
+            1:io_slave_wready = 0;
+            default:io_slave_wready = 0;
         endcase
         case (B_state)
             2'b00:begin 
-                BVALID = 0;
-                BRESP = 2'b0;
+                io_slave_bvalid = 0;
+                io_slave_bresp = 2'b0;
             end
             2'b01:begin
-                if(w_fin) BVALID = 1;
-                else BVALID = 0;
-                BRESP = 2'b0;
+                if(w_fin) io_slave_bvalid = 1;
+                else io_slave_bvalid = 0;
+                io_slave_bresp = 2'b0;
             end
             2'b10:begin
-                BVALID = 1;
-                BRESP = 2'b0;
+                io_slave_bvalid = 1;
+                io_slave_bresp = 2'b0;
             end
             default:begin
-                BVALID = 0;
-                BRESP = 2'b0;
+                io_slave_bvalid = 0;
+                io_slave_bresp = 2'b0;
             end 
         endcase
         case (AR_state)
             1'b0:begin
-                ARREADY = 1;
+                io_slave_arready = 1;
             end
             1'b1:begin
-                ARREADY = 0;
+                io_slave_arready = 0;
             end
         endcase
         case (R_state)
             2'b00:begin
-                RVALID = 0;
-                RRESP = 2'b0;
+                io_slave_rvalid = 0;
+                io_slave_rresp = 2'b0;
             end
             2'b01:begin
-                if(r_fin) RVALID = 1;
-                else RVALID = 0;
-                RRESP = 2'b0;
+                if(r_fin) io_slave_rvalid = 1;
+                else io_slave_rvalid = 0;
+                io_slave_rresp = 2'b0;
             end
             2'b10:begin
-                RVALID = 1;
-                RRESP = 2'b0;
+                io_slave_rvalid = 1;
+                io_slave_rresp = 2'b0;
             end
             default:begin
-                RVALID = 0;
-                RRESP = 2'b0;
+                io_slave_rvalid = 0;
+                io_slave_rresp = 2'b0;
             end
         endcase
     end
@@ -178,20 +184,20 @@ assign w_fin = 1;
 assign r_fin = 1;
 
 reg [DATA_WID*2-1:0] mtime;
-always @(posedge ACLK) begin
+always @(posedge clk) begin
     mtime <= 0;
-    RDATA <= 0;
+    io_slave_rdata <= 0;
 
-    if(!ARESETn) begin
+    if(rst) begin
         mtime <= 0;
-        RDATA <= 0;
+        io_slave_rdata <= 0;
     end 
     else begin
         mtime <= mtime + 1;
         if(r_req) begin
-            case (ARADDR[2:0])
-            3'b000:RDATA <= mtime[DATA_WID-1:0];
-            3'b100:RDATA <= mtime[DATA_WID*2-1:DATA_WID];
+            case (io_slave_araddr[2:0])
+            3'b000:io_slave_rdata <= mtime[DATA_WID-1:0];
+            3'b100:io_slave_rdata <= mtime[DATA_WID*2-1:DATA_WID];
             default:;
             endcase
         end

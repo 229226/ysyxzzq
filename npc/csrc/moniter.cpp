@@ -66,7 +66,7 @@ void moniter_init(int argc , char *argv[]){
         diff_init();
     #endif
 
-    init_timer();
+    //init_timer();
 }
 
 void moniter_loop(){

@@ -6,20 +6,43 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   input [3:0]wmask,
   input [2:0]rmask,
   output reg [DATA_WID-1:0]rdata_out,
-  //AXI4_lite接口
-  output [ADDR_WID-1:0]AWADDR,ARADDR,
-  output AWVALID,WVALID,BREADY,ARVALID,RREADY,
-  input AWREADY,WREADY,BVALID,ARREADY,RVALID,
-  output [DATA_WID-1:0]WDATA,
-  input [DATA_WID-1:0]RDATA,
-  output [3:0]WSTRB,
-  input [1:0]BRESP,RRESP,
   //中转信号
   input   EXU_reg_wen,EXU_csr_wen,EXU_csr_ren,
   output  LSU_reg_wen,LSU_csr_wen,LSU_csr_ren,
   //LSUstate
   input EXU_valid,WBU_ready,
-  output reg LSU_ready,LSU_valid
+  output reg LSU_ready,LSU_valid,
+
+//AXI4接口
+  input 		io_master_awready,
+  output 		io_master_awvalid,
+  output 	[31:0] 	io_master_awaddr,
+  output 	[3:0] 	io_master_awid,
+  output 	[7:0] 	io_master_awlen,
+  output 	[2:0] 	io_master_awsize,
+  output 	[1:0] 	io_master_awburst,
+  input 		io_master_wready,
+  output 		io_master_wvalid,
+  output 	[31:0] 	io_master_wdata,
+  output 	[3:0] 	io_master_wstrb,
+  output 		io_master_wlast,
+  output 		io_master_bready,
+  input 		io_master_bvalid,
+  input 	[1:0] 	io_master_bresp,
+  input 	[3:0] 	io_master_bid,
+  input 		io_master_arready,
+  output 		io_master_arvalid,
+  output 	[31:0] 	io_master_araddr,
+  output 	[3:0] 	io_master_arid,
+  output 	[7:0] 	io_master_arlen,
+  output 	[2:0] 	io_master_arsize,
+  output 	[1:0] 	io_master_arburst,
+  output 		io_master_rready,
+  input 		io_master_rvalid,
+  input 	[1:0] 	io_master_rresp,
+  input 	[31:0] 	io_master_rdata,
+  input 		io_master_rlast,
+  input 	[3:0] 	io_master_rid
 );
 //LSUstate
   //0 wait EXU valid
@@ -38,7 +61,7 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
             if(LSU_work == 0) nLSU_state = 2;
             else nLSU_state = 1;
           else  nLSU_state = 0;
-      1:if(SRAM_rfini || SRAM_wfini)
+      1:if(R_fin || W_fin)
             if(WBU_ready) nLSU_state = 0;
             else nLSU_state = 2;
           else nLSU_state = 1;
@@ -62,7 +85,7 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
           end
       end
       1:begin 
-          if(SRAM_rfini || SRAM_wfini) begin
+          if(R_fin || W_fin) begin
             LSU_valid = 1;
             if(WBU_ready) LSU_ready = 1;
             else LSU_ready = 0;
@@ -80,15 +103,16 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
       default:begin LSU_valid=0;LSU_ready=0; end
     endcase
   end
-//SRAM控制信号
-  wire SRAM_ren,SRAM_awen,SRAM_wen,SRAM_rfini,SRAM_wfini,SRAM_wres,SRAM_rres;
-  assign SRAM_ren = (LSU_state == 0)&&LSU_ren&&(AR_wtime==0);
-  assign SRAM_awen = (LSU_state == 0)&&LSU_wen&&(AW_wtime==0);
-  assign SRAM_wen = (LSU_state == 0)&&LSU_wen&&(W_wtime==0);
-  assign SRAM_rfini = RVALID&&RREADY;
-  assign SRAM_wfini = BVALID&&BREADY;
-  assign SRAM_wres = B_rtime==0;
-  assign SRAM_rres = R_rtime==0;
+//slave控制信号
+  wire R_en,AW_en,W_en,R_fin,W_fin,W_res,R_res;
+  assign R_en = (LSU_state == 0)&&LSU_ren&&(AR_wtime==0);
+  assign AW_en = (LSU_state == 0)&&LSU_wen&&(AW_wtime==0);
+  assign W_en = (LSU_state == 0)&&LSU_wen&&(W_wtime==0);
+  assign R_fin = io_master_rvalid&&io_master_rready;
+  assign W_fin = (io_master_awvalid&&io_master_awready)
+                  &&(io_master_wvalid&&io_master_wready);
+  assign W_res = B_rtime==0;
+  assign R_res = R_rtime==0;
 //LSFR测试
   wire [4:0]AR_wt_init,AW_wt_init,W_wt_init,R_rt_init,B_rt_init;
   assign AR_wt_init = 0;
@@ -134,96 +158,100 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   //1 wait ready
   reg W_state,nW_state;
   //wres
-  //0 wait valid
-  //1 wait work
-  reg B_state,nB_state;
+  //W_res==1 > bready==1;
   //raddr
   //0 wait addr
   //1 wait ready
   reg AR_state,nAR_state;
   //rdata
-  //0 wait valid
-  //1 wait work
-  reg R_state,nR_state;
-  always @(posedge ACLK) begin
-      if(!ARESETn) begin
-          AW_state <= 1'b0;W_state <= 1'b0;B_state <= 1'b0;
-          AR_state <= 1'b0;R_state <= 1'b0; 
+  //R_res==1 > rready==1;
+  always @(posedge clk) begin
+      if(rst) begin
+          AW_state <= 1'b0;W_state <= 1'b0;
+          AR_state <= 1'b0;
       end 
       else begin
-          AW_state <= nAW_state;W_state <= nW_state;B_state <= nB_state;
-          AR_state <= nAR_state;R_state <= nR_state;
+          AW_state <= nAW_state;W_state <= nW_state;
+          AR_state <= nAR_state;
       end 
   end
   always @(*) begin
       case (AW_state)
-      1'b0:if(SRAM_awen) nAW_state = 1;
+      1'b0:if(AW_en) nAW_state = 1;
       else nAW_state = 0;
-      1'b1:if(AWREADY) nAW_state = 0;
+      1'b1:if(io_master_awready) nAW_state = 0;
       else nAW_state = 1;
       endcase
       case (W_state)
-      1'b0:if(SRAM_wen) nW_state = 1;
+      1'b0:if(W_en) nW_state = 1;
       else nW_state = 0;
-      1'b1:if(WREADY) nW_state = 0;
+      1'b1:if(io_master_wready) nW_state = 0;
       else nW_state = 1;
       endcase
-      case (B_state)
-      1'b0:if(BVALID) nB_state = 1;
-      else nB_state = 0;
-      1'b1:if(SRAM_wres)nB_state = 0;
-      else nB_state = 1;
-      endcase
       case (AR_state)
-      1'b0:if(SRAM_ren) nAR_state = 1;
+      1'b0:if(R_en) nAR_state = 1;
       else nAR_state = 0;
-      1'b1:if(ARREADY) nAR_state = 0;
+      1'b1:if(io_master_arready) nAR_state = 0;
       else nAR_state = 1;
-      endcase
-      case (R_state)
-      1'b0:if(RVALID) nR_state = 1;
-      else nR_state = 0;
-      1'b1:if(SRAM_rres)nR_state = 0;
-      else nR_state = 1;
       endcase
   end
   always @(*) begin
       case (AW_state)
-      1'b0:if(SRAM_awen) AWVALID = 1;
-      else AWVALID = 0;
-      1'b1:AWVALID = 1;
+      1'b0:io_master_awvalid = 0;
+      1'b1:io_master_awvalid = 1;
       endcase
       case (W_state)
-      1'b0:if(SRAM_wen) WVALID = 1;
-      else WVALID = 0;
-      1'b1:WVALID = 1;
+      1'b0:io_master_wvalid = 0;
+      1'b1:io_master_wvalid = 1;
       endcase
-      case (B_state)
-      1'b0:if(SRAM_wres)BREADY = 1;
-      else BREADY = 0;
-      1'b1:if(SRAM_wres)BREADY = 1;
-      else BREADY = 0;
-      endcase
+      if(W_res)io_master_bready = 1;
+      else io_master_bready = 0;
       case (AR_state)
-      1'b0:if(SRAM_ren) ARVALID = 1;
-      else ARVALID = 0;
-      1'b1:ARVALID = 1;
+      1'b0:io_master_arvalid = 0;
+      1'b1:io_master_arvalid = 1;
       endcase
-      case (R_state)
-      1'b0:if(SRAM_rres)RREADY = 1;
-      else RREADY = 0;
-      1'b1:if(SRAM_rres)RREADY = 1;
-      else RREADY = 0;
-      endcase
+      if(R_res)io_master_rready = 1;
+      else io_master_rready = 0;
   end
-  wire ACLK,ARESETn;
-  assign ACLK = clk;
-  assign ARESETn = ~rst;
-  assign AWADDR = waddr;
-  assign WDATA = wdata;
-  assign WSTRB = wmask;
-  assign ARADDR = raddr;
-  assign rdata = RDATA;
+//AXI4接口信号
+  reg [2:0] awsize,arsize;
+  always @(*) begin
+    awsize = 0;
+    arsize = 0;
+    case(wmask)
+    4'b0001:awsize = 3'b000;
+    4'b0011:awsize = 3'b001;
+    4'b1111:awsize = 3'b010;
+    default:awsize = 3'b000;
+    endcase
+    case(rmask)
+    3'b001:arsize = 3'b000;
+    3'b010:arsize = 3'b001;
+    3'b011:arsize = 3'b010;
+    3'b100:arsize = 3'b000;
+    3'b101:arsize = 3'b001;
+    default:arsize = 3'b000;
+    endcase
+  end
+  assign io_master_awaddr = waddr;
+  assign io_master_awsize = awsize;
+  assign io_master_awburst = 2'b01;
+  assign io_master_wlast = 1;
+
+  assign io_master_wdata = wdata;
+  assign io_master_wstrb = wmask;
+
+  assign io_master_araddr = raddr;
+  assign io_master_arsize = arsize;
+  assign io_master_arburst = 2'b01;
+
+  assign rdata = io_master_rdata;
+
+  assign io_master_awid = 0;
+  assign io_master_awlen = 0;
+  assign io_master_arid = 0;
+  assign io_master_arlen = 0;
+  
 
 assign	LSU_reg_wen = EXU_reg_wen;
 assign	LSU_csr_wen = EXU_csr_wen;

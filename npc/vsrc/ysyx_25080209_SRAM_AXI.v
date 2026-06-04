@@ -1,7 +1,6 @@
 (* keep_hierarchy = "yes" *)  // 保持模块层次结构
 module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
-    //AXI
-    input ACLK,ARESETn,
+    input clk,rst,
     //waddr
     input [ADDR_WID-1:0]AWADDR,
     //input [2:0]AWPROT,
@@ -51,8 +50,8 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         //01 wait sram and ready
         //10 wait ready
         reg [1:0]R_state,nR_state;
-    always @(posedge ACLK) begin
-        if(!ARESETn) begin
+    always @(posedge clk) begin
+        if(rst) begin
             AW_state <= 1'b0;W_state <= 1'b0;B_state <= 2'b0;
             AR_state <= 1'b0;R_state <= 2'b0; 
         end 
@@ -181,14 +180,14 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     wire [4:0]SRAM_wt_init,SRAM_rt_init;
     assign SRAM_wt_init = 0;
     assign SRAM_rt_init = 0;
-    // ysyx_25080209_LSFR SRAM_LSFR1(.clk(ACLK),.rst(!ARESETn),.data(SRAM_wt_init));
-    // ysyx_25080209_LSFR SRAM_LSFR2(.clk(ACLK),.rst(!ARESETn),.data(SRAM_rt_init));
+    // ysyx_25080209_LSFR SRAM_LSFR1(.clk(clk),.rst(rst),.data(SRAM_wt_init));
+    // ysyx_25080209_LSFR SRAM_LSFR2(.clk(clk),.rst(rst),.data(SRAM_rt_init));
     reg [4:0] SRAM_wtime,SRAM_rtime;
     wire SRAM_wt_wk,SRAM_rt_wk;
     assign SRAM_wt_wk = ((B_state==0)&&(nB_state==1)) || ((B_state==1)&&(nB_state==1));
     assign SRAM_rt_wk = ((R_state==0)&&(nR_state==1)) || ((R_state==1)&&(nR_state==1));
-    always @(posedge ACLK) begin
-        if(!ARESETn) begin
+    always @(posedge clk) begin
+        if(rst) begin
             SRAM_wtime <= SRAM_wt_init;SRAM_rtime <= SRAM_rt_init;
         end
         else begin
@@ -206,8 +205,8 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     import "DPI-C" function int pmem_read(input int raddr);
     import "DPI-C" function void pmem_write(
     input int waddr, input int wdata, input byte wmask);
-    always @(posedge ACLK) begin
-        if(!ARESETn) begin
+    always @(posedge clk) begin
+        if(rst) begin
             RDATA <= 0;
         end 
         else begin
@@ -218,7 +217,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     end
 //SRAM读写
     // reg [DATA_WID-1:0] SRAM [2**ADDR_WID-1:0];
-    // always @(posedge ACLK) begin
+    // always @(posedge clk) begin
     //     if(SRAM_ren) RDATA <= SRAM[ARADDR];
     //     else RDATA <= RDATA;
     //     if(SRAM_wen) SRAM[AWADDR] <= WDATA;

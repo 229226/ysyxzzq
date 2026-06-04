@@ -22,6 +22,9 @@ void ins_state(int state){
 }
 
 int main(int argc, char *argv[]) {
+  //SoC
+  Verilated::commandArgs(argc, argv);
+
   moniter_init(argc,argv);
 
   sim_init();

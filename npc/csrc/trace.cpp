@@ -8,6 +8,7 @@
 char itrace_str[ITRACE_BUFLEN];
 static char itrace_rb[ITRACE_RBLEN][ITRACE_BUFLEN];
 static int rb_p = 0;
+static int rb_full = 0;
 
 FILE *trace_file;
 
@@ -18,6 +19,7 @@ void trace_init(){
 
 void itrace_rb_add(char *str){
     if(rb_p >= 20){
+        rb_full = 1;
         rb_p = 0;
         sprintf(itrace_rb[rb_p],"%s",str);
         rb_p++;
@@ -28,16 +30,25 @@ void itrace_rb_add(char *str){
 }
 
 void itrace_rb_pr(){
-    for (int i = 0; i < ITRACE_RBLEN; i++)
+    if(rb_full){
+        for (int i = rb_p; i < rb_p + 20; i++)
+        {
+            printf("%s\n",itrace_rb[(i%20)]);
+        }
+    }else {
+    for (int i = 0; i < rb_p; i++)
     {
         printf("%s\n",itrace_rb[i]);
+    }   
     }
 }
 
 void itrace_print(int ins){
+    if(ins == 0) return;
+    
     sprintf(itrace_str,"pc:0x%08x ins:0x%08x ",npc.pc,ins);
     if(disassemble(itrace_str + strlen(itrace_str),ITRACE_BUFLEN - strlen(itrace_str),npc.pc,(uint8_t *)&ins,4) == -1) {
-        printf("itrace: 反编译失败\n");
+        printf("itrace: 反编译失败 pc:0x%08x ins:0x%08x\n",npc.pc,ins);
         return;}
     itrace_rb_add(itrace_str);
     fprintf(trace_file,"%s\n",itrace_str);

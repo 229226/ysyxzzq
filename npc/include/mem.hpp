@@ -4,7 +4,7 @@
 #include "common.hpp"
 
 #define paddr_t uint32_t
-#define RESETADDR 0x80000000
+#define RESETADDR 0x20000000
 
 extern const int mem_size;
 

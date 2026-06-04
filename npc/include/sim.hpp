@@ -3,17 +3,19 @@
 
 #include <verilated.h>
 #include <verilated_fst_c.h>
-#include <Vysyx_25080209_npc.h>
+#include <VysyxSoCTop.h>
 //DPI-C
 #include "svdpi.h"
-#include <Vysyx_25080209_npc__Dpi.h>
+#include <VysyxSoCTop__Dpi.h>
 
 #include "common.hpp"
 #include "mem.hpp"
 
+#define TOP_NAME VysyxSoCTop
+
 void sim_init();
 void sim_exit();
-void sim_clk();
+void sim_clock();
 void step_and_dump();
 int sim_exec_half();
 int sim_exec_one();

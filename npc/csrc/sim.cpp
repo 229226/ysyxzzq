@@ -3,15 +3,13 @@
 #include "diff_test.hpp"
 #include "trace.hpp"
 
-#define TOP_NAME Vysyx_25080209_npc
-
 static TOP_NAME *top = new TOP_NAME;
 static VerilatedContext* contextp = NULL;
 #ifdef FST_CONFIG
   static VerilatedFstC* tfp = NULL;
 #endif
 
-static int clk_num = 0;
+static int clock_num = 0;
 
 void sim_init(){
     Verilated::traceEverOn(true);
@@ -23,13 +21,20 @@ void sim_init(){
     tfp->open("./build/waveform.fst");
     #endif
 
-    top->rst = 1;
-    top->clk = 0;
-    step_and_dump();
-    top->clk = 1;
-    step_and_dump();
-    top->rst = 0;
-    top->clk = 0;
+    top->reset = 1;
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+    sim_clock();
+
+    top->reset = 0;
+    top->clock = 0;
     step_and_dump();
 }
 
@@ -41,10 +46,10 @@ void sim_exit(){
   #endif
 }
 
-void sim_clk(){
-  top->clk = 1;
+void sim_clock(){
+  top->clock = 1;
   step_and_dump();
-  top->clk = 0;
+  top->clock = 0;
   step_and_dump();
 }
 
@@ -58,20 +63,20 @@ void step_and_dump(){
 }
 
 int sim_exec_half(){
-    top->clk = 0;
+    top->clock = 0;
     step_and_dump();
     return 0;
 }
 
 int sim_exec_one(){
-    sim_clk();
+    sim_clock();
     
     #ifdef DIFF_CONFIG
       if(npc_status.ins_state == INS_FINI)
       diff_step();
     #endif
 
-    clk_num++;
+    clock_num++;
     return 0;
 }
 
@@ -98,7 +103,7 @@ int sim_exec(int turns){
     }
   }
   
-  printf("npc:执行花费了%d个时钟周期\n",clk_num);
+  printf("npc:执行花费了%d个时钟周期\n",clock_num);
 
   #ifdef ITRACE_CONFIG
     itrace_rb_pr();

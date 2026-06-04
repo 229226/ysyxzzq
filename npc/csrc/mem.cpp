@@ -6,6 +6,13 @@
 
 const int mem_size = 0x8000000;
 
+//SoC
+extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+extern "C" void mrom_read(int32_t addr, int32_t *data) {
+    *data = *(int32_t *)addr;
+    // *data = 0x00100073;
+}
+
 void init_mem(char *file_img){
     if(file_img == NULL){
         printf("npc:没有给出img文件\n");

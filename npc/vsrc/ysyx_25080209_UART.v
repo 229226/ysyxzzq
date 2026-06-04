@@ -1,7 +1,6 @@
 (* keep_hierarchy = "yes" *)  // 保持模块层次结构
 module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
-    //AXI
-    input ACLK,ARESETn,
+    input clk,rst,
     //waddr
     input [ADDR_WID-1:0]AWADDR,
     //input [2:0]AWPROT,
@@ -51,8 +50,8 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
         //01 wait sram and ready
         //10 wait ready
         reg [1:0]R_state,nR_state;
-    always @(posedge ACLK) begin
-        if(!ARESETn) begin
+    always @(posedge clk) begin
+        if(rst) begin
             AW_state <= 1'b0;W_state <= 1'b0;B_state <= 2'b0;
             AR_state <= 1'b0;R_state <= 2'b0; 
         end 
@@ -167,7 +166,7 @@ module  ysyx_25080209_UART #(ADDR_WID = 32,DATA_WID = 32) (
 
     reg UART_wen,UART_ren;
     assign UART_wen = (B_state==0)&&(nB_state==1);
-    always @(posedge ACLK) begin
+    always @(posedge clk) begin
         if(UART_wen) $write("%c",UART_data[7:0]);
     end
 endmodule
