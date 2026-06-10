@@ -34,8 +34,6 @@ void sim_init(){
     sim_clock();
 
     top->reset = 0;
-    top->clock = 0;
-    step_and_dump();
 }
 
 void sim_exit(){

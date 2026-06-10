@@ -17,7 +17,9 @@ void itrace(int ins){
   #endif
 }
 void ins_state(int state){
-  if(state == 1)npc_status.ins_state = INS_FINI;
+  if(state == 1){
+    npc_status.ins_state = INS_FINI;
+  }
   else npc_status.ins_state = INS_EXEC;
 }
 

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <string.h>
 
-//#define DIFF_CONFIG
+#define DIFF_CONFIG
 #define TRACE_CONFIG
 #define ITRACE_CONFIG
 //#define MTRACE_CONFIG

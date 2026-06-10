@@ -4,7 +4,7 @@
 #include "npc_ioe.hpp"
 #include "timer.hpp"
 
-const int mem_size = 0x8000000;
+const int mem_size = 0x00001000;
 
 //SoC
 extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }

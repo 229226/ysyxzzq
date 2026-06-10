@@ -137,7 +137,7 @@ void sdb_mainloop(){
         if(input != NULL){
             free(input);
         }
-        input = readline("NPCsdb:");
+        input = readline("(NPCsdb):");
         add_history(input);
         if(cmd_handle(input) != 0){
             break;

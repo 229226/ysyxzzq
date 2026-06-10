@@ -235,3 +235,16 @@ config WATCHPOINT
   bool "Enable checking watchpoint"
   default y
 endmenu
+
+menu "PLATFORM"
+
+choice
+  prompt "Running Platform"
+  default PLATFORM_NEMU
+config PLATFORM_NEMU
+  bool "Run on NEMU"
+config PLATFORM_YSYXSOC
+  bool "Run on YSYXSOC"
+endchoice
+
+endmenu

@@ -11,6 +11,8 @@ typedef void (*ref_difftest_exec)(uint64_t n);
 ref_difftest_exec my_difftest_exec;
 typedef void (*ref_difftest_raise_intr)(uint64_t NO);
 ref_difftest_raise_intr my_difftest_raise_intr;
+typedef void (*ref_difftest_init)(int port);
+ref_difftest_init my_difftest_init;
 
 void diff_init(){
     void *dl_handle;
@@ -28,6 +30,11 @@ void diff_init(){
 
     my_difftest_raise_intr = (ref_difftest_raise_intr)dlsym(dl_handle,"difftest_raise_intr");
     assert(my_difftest_raise_intr);
+
+    my_difftest_init = (ref_difftest_init)dlsym(dl_handle,"difftest_init");
+    assert(my_difftest_init);
+
+    my_difftest_init(0);
 
     my_difftest_memcpy(RESETADDR,(void *)RESETADDR,mem_size,DIFFTEST_TO_REF);
 

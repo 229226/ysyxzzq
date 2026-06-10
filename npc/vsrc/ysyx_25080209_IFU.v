@@ -183,4 +183,10 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
         read_reg(pc,32);
     end
     assign snpc = pc + 32'h4;
+//diff_test
+import "DPI-C" function void ins_state(int state);
+always @(posedge clk) begin
+    if(PC_wen) ins_state(1); //finished
+    else ins_state(0);       //running
+end
 endmodule

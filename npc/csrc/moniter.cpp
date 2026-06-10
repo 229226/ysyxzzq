@@ -7,7 +7,11 @@
 #include "trace.hpp"
 #include "timer.hpp"
 
-NPC_Status npc_status;
+NPC_Status npc_status = {
+    .status = NPC_NORMAL,
+    .ins_state = INS_EXEC,
+    .ebreak_ret = 0    
+};
 NPC npc;
 
 static char *file_img = NULL;

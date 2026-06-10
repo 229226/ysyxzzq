@@ -17,12 +17,16 @@
 #include <memory/paddr.h>
 #include <device/mmio.h>
 #include <isa.h>
+#include <platform/ysyxsoc/ysyxsoc_mmio.h>
 
 #if   defined(CONFIG_PMEM_MALLOC)
 static uint8_t *pmem = NULL;
 #else // CONFIG_PMEM_GARRAY
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
+
+typedef enum PLATFORM {NEMU,YSYXSOC} PLATFORM;
+static PLATFORM env = NEMU;
 
 uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
@@ -48,28 +52,45 @@ void init_mem() {
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
+
+  IFDEF(CONFIG_PLATFORM_YSYXSOC, env = YSYXSOC);
+  /* Initialize platform. */
+  IFDEF(CONFIG_PLATFORM_YSYXSOC,ysyxsoc_mmio_init());
 }
 
 word_t paddr_read(paddr_t addr, int len) {
-
-
+  int is_out = 1;
   word_t data;
-  if (likely(in_pmem(addr))) {
-    data = pmem_read(addr, len);
+
+  switch(env){
+    case(NEMU):{
+      if (likely(in_pmem(addr))) {
+        data = pmem_read(addr, len);
+        is_out = 0;
+        break;
+      }
+      IFDEF(CONFIG_DEVICE, {
+        data = mmio_read(addr, len);
+        is_out = 0;
+        break;
+      });
+    }
+    case(YSYXSOC):{
+      data = ysyxsoc_read(addr, len);
+      is_out = 0;
+      break;
+    }
+  }
+  
+  if(is_out){
+    out_of_bound(addr);
+  return 0;
+  }else{
     #ifdef CONFIG_MTRACE_COND
       log_write("mtrace: read  addr:0x%08x  data:0x%08x\n",addr,data);
     #endif
     return data;
   }
-  IFDEF(CONFIG_DEVICE, {
-    data = mmio_read(addr, len);
-    #ifdef CONFIG_MTRACE_COND
-      log_write("mtrace: read  addr:0x%08x  data:0x%08x\n",addr,data);
-    #endif
-    return data;
-  });
-  out_of_bound(addr);
-  return 0;
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
@@ -77,7 +98,16 @@ void paddr_write(paddr_t addr, int len, word_t data) {
   log_write("mtrace: write addr:0x%08x  data:0x%08x\n",addr,data);
   #endif
 
-  if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
-  IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
+  switch(env){
+    case(NEMU):{
+      if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
+      IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
+    }
+    case(YSYXSOC):{
+      ysyxsoc_write(addr, len, data);
+      return;
+    }
+  }
+
   out_of_bound(addr);
 }

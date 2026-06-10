@@ -301,12 +301,6 @@ ysyx_25080209_CSR u_ysyx_25080209_CSR(
     .mtvec_out  (mtvec_out),
     .mepc_out   (mepc_out)
 );
-//diff_test
-    import "DPI-C" function void ins_state(int state);
-    always @(*) begin
-        if(LSU_valid) ins_state(0); //finished
-        else ins_state(1);          //running
-    end
 //AXI4_Arbiter_Xbar
     //AXI4接口 master0
     wire                  io_master0_awready;
