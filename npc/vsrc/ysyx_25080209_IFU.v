@@ -1,6 +1,6 @@
 module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
     input clk,rst,
-    input [DATA_WID-1:0]pc_next,
+    input [DATA_WID-1:0]IFU_npc,
     output reg [DATA_WID-1:0]ins,snpc,pc,
 
     input IDU_ready,
@@ -112,7 +112,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
             if(B_rtime!=5'b0)B_rtime<=B_rtime-1;else begin B_rtime<=B_rt_init;end
         end
     end
-//AXI4 master
+//AXI4 主状态机
     //raddr
     //0 wait addr
     //1 wait ready
@@ -144,6 +144,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
         if(R_res)io_master_rready = 1;
         else io_master_rready = 0;
     end
+//AXI4输出信号处理
     assign io_master_araddr = pc;
     assign io_master_arsize = 3'b010;
     assign io_master_arburst = 2'b01;
@@ -166,16 +167,31 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
     assign io_master_arid = 0;
     assign io_master_arlen = 0;
     assign io_master_rready = 0;
+//AXI4读写反馈处理
+  reg [1:0]bresp,rresp;
+  always @(posedge clk) begin
+    if(rst)begin
+      bresp <= 0;
+      rresp <= 0;
+    end
+    else if(io_master_bvalid) bresp <= io_master_bresp;
+    else if(io_master_rvalid) rresp <= io_master_rresp;
+  end
+  always @(*) begin
+    if((bresp!=0)||(rresp!=0)) dnpc = 0;
+    else dnpc = IFU_npc;
+  end
 //itrace
     import "DPI-C" function void itrace(int ins);
     always @(posedge clk) begin
         itrace(ins);
     end
 //PC
+    reg [ADDR_WID-1:0]dnpc;
     always @(posedge clk) begin
         if(rst) pc <= 32'h2000_0000;
         else begin
-            if(PC_wen)  pc <= pc_next;
+            if(PC_wen)  pc <= dnpc;
         end
     end
     import "DPI-C" function void read_reg(int val,int num);

@@ -5,6 +5,8 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   input [DATA_WID-1:0]wdata,
   input [3:0]wmask,
   input [2:0]rmask,
+  input [ADDR_WID-1:0]EXU_npc,
+  output reg [ADDR_WID-1:0]LSU_npc,
   output reg [DATA_WID-1:0]rdata_out,
   //中转信号
   input   EXU_reg_wen,EXU_csr_wen,EXU_csr_ren,
@@ -147,7 +149,7 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
       3'b100,{24'b0,rdata[7:0]},                  //lbu
       3'b101,{16'b0,rdata[15:0]}                  //lhu
   });
-  wire [DATA_WID-1:0]rdata;
+  reg [DATA_WID-1:0]rdata;
 //AXI SRAM 主 使用米利状态机
   //waddr 
   //0 wait addr
@@ -214,6 +216,120 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
       else io_master_rready = 0;
   end
 //AXI4接口信号
+  reg [DATA_WID-1:0]AXI4_wdata;
+  reg [3:0]AXI4_strb;
+  wire [DATA_WID-1:0]AXI4_rdata;
+  always@(*) begin
+    AXI4_wdata = 0;
+    AXI4_strb = 0;
+    case(wmask)
+    4'b0001:begin
+      case(waddr[1:0])
+      2'b00:begin
+        AXI4_wdata = {24'b0,wdata[7:0]};
+        AXI4_strb = 4'b0001;
+      end 
+      2'b01:begin
+        AXI4_wdata = {16'b0,wdata[7:0],8'b0};
+        AXI4_strb = 4'b0010;
+      end 
+      2'b10:begin
+        AXI4_wdata = {8'b0,wdata[7:0],16'b0};
+        AXI4_strb = 4'b0100;
+      end 
+      2'b11:begin
+        AXI4_wdata = {wdata[7:0],24'b0};
+        AXI4_strb = 4'b1000;
+      end 
+      endcase
+    end
+    4'b0011:begin
+      case(waddr[1:0])
+      2'b00:begin
+        AXI4_wdata = {16'b0,wdata[15:0]};
+        AXI4_strb = 4'b0011;
+      end 
+      2'b01:begin
+        AXI4_wdata = {8'b0,wdata[15:0],8'b0};
+        AXI4_strb = 4'b0110;
+      end 
+      2'b10:begin
+        AXI4_wdata = {wdata[15:0],16'b0};
+        AXI4_strb = 4'b1100;
+      end 
+      2'b11:begin
+        AXI4_wdata = {wdata[7:0],24'b0};
+        AXI4_strb = 4'b1000;
+      end 
+      endcase
+    end
+    4'b1111:begin
+      case(waddr[1:0])
+      2'b00:begin
+        AXI4_wdata = wdata;
+        AXI4_strb = 4'b1111;
+      end 
+      2'b01:begin
+        AXI4_wdata = {wdata[23:0],8'b0};
+        AXI4_strb = 4'b1110;
+      end 
+      2'b10:begin
+        AXI4_wdata = {wdata[15:0],16'b0};
+        AXI4_strb = 4'b1100;
+      end 
+      2'b11:begin
+        AXI4_wdata = {wdata[7:0],24'b0};
+        AXI4_strb = 4'b1000;
+      end 
+      endcase
+    end
+    default:AXI4_wdata = 0;
+    endcase
+    case(rmask)
+    3'b001:begin
+      case(waddr[1:0])
+      2'b00:rdata = {24'b0,AXI4_rdata[7:0]};
+      2'b01:rdata = {24'b0,AXI4_rdata[15:8]};
+      2'b10:rdata = {24'b0,AXI4_rdata[23:16]};
+      2'b11:rdata = {24'b0,AXI4_rdata[31:24]};
+      endcase
+    end
+    3'b010:begin
+      case(waddr[1:0])
+      2'b00:rdata = {16'b0,AXI4_rdata[15:0]};
+      2'b01:rdata = {16'b0,AXI4_rdata[23:8]};
+      2'b10:rdata = {16'b0,AXI4_rdata[31:16]};
+      2'b11:rdata = {24'b0,AXI4_rdata[31:24]};
+      endcase
+    end
+    3'b011:begin
+      case(waddr[1:0])
+      2'b00:rdata = AXI4_rdata;
+      2'b01:rdata = {8'b0,AXI4_rdata[31:8]};
+      2'b10:rdata = {16'b0,AXI4_rdata[31:16]};
+      2'b11:rdata = {24'b0,AXI4_rdata[31:24]};
+      endcase
+    end
+    3'b100:begin
+      case(waddr[1:0])
+      2'b00:rdata = {24'b0,AXI4_rdata[7:0]};
+      2'b01:rdata = {24'b0,AXI4_rdata[15:8]};
+      2'b10:rdata = {24'b0,AXI4_rdata[23:16]};
+      2'b11:rdata = {24'b0,AXI4_rdata[31:24]};
+      endcase
+    end
+    3'b101:begin
+      case(waddr[1:0])
+      2'b00:rdata = {16'b0,AXI4_rdata[15:0]};
+      2'b01:rdata = {16'b0,AXI4_rdata[23:8]};
+      2'b10:rdata = {16'b0,AXI4_rdata[31:16]};
+      2'b11:rdata = {24'b0,AXI4_rdata[31:24]};
+      endcase
+    end
+    default:rdata = 0;
+    endcase
+  end
+
   reg [2:0] awsize,arsize;
   always @(*) begin
     awsize = 0;
@@ -238,20 +354,33 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   assign io_master_awburst = 2'b01;
   assign io_master_wlast = 1;
 
-  assign io_master_wdata = wdata;
-  assign io_master_wstrb = wmask;
+  assign io_master_wdata = AXI4_wdata;
+  assign io_master_wstrb = AXI4_strb;
 
   assign io_master_araddr = raddr;
   assign io_master_arsize = arsize;
   assign io_master_arburst = 2'b01;
 
-  assign rdata = io_master_rdata;
+  assign AXI4_rdata = io_master_rdata;
 
   assign io_master_awid = 0;
   assign io_master_awlen = 0;
   assign io_master_arid = 0;
   assign io_master_arlen = 0;
-  
+//AXI4读写反馈处理
+  reg [1:0]bresp,rresp;
+  always @(posedge clk) begin
+    if(rst)begin
+      bresp <= 0;
+      rresp <= 0;
+    end
+    else if(io_master_bvalid) bresp <= io_master_bresp;
+    else if(io_master_rvalid) rresp <= io_master_rresp;
+  end
+  always @(*) begin
+    if((bresp!=0)||(rresp!=0)) LSU_npc = 0;
+    else LSU_npc = EXU_npc;
+  end
 
 assign	LSU_reg_wen = EXU_reg_wen;
 assign	LSU_csr_wen = EXU_csr_wen;

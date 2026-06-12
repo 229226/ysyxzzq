@@ -81,9 +81,11 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
     wire IFU_valid;
     wire [DATA_WID-1:0] ins;
     wire [ADDR_WID-1:0] pc,snpc;
+    wire [ADDR_WID-1:0] IFU_npc;
+    assign IFU_npc = LSU_npc;
 ysyx_25080209_IFU IFU (
     .clk(clk),.rst(rst),
-    .pc_next(pc_next),.pc(pc),.snpc(snpc),
+    .IFU_npc(IFU_npc),.pc(pc),.snpc(snpc),
     .ins( ins),
 
     .IDU_ready(IDU_ready),.IFU_valid(IFU_valid),
@@ -157,7 +159,7 @@ ysyx_25080209_IDU #(32,4) IDU (
     .EXU_ready(EXU_ready),.IFU_valid(IFU_valid),.IDU_ready(IDU_ready),.IDU_valid(IDU_valid)
 );
 //EXU
-    wire [DATA_WID-1:0] exu_out,pc_next;
+    wire [DATA_WID-1:0] exu_out,EXU_npc;
     //中转信号
     wire EXU_reg_wen,EXU_csr_wen,EXU_csr_ren;
     //EXUstate
@@ -179,7 +181,7 @@ ysyx_25080209_EXU EXU(
     .mret       (mret),
     .mtvec      (mtvec_out),
     .mepc       (mepc_out),
-    .pc_next    (pc_next),
+    .pc_next    (EXU_npc),
 
     .IDU_reg_wen(IDU_reg_wen),.IDU_csr_wen(IDU_csr_wen),.IDU_csr_ren(IDU_csr_ren),
     .EXU_reg_wen(EXU_reg_wen),.EXU_csr_wen(EXU_csr_wen),.EXU_csr_ren(EXU_csr_ren),
@@ -191,6 +193,7 @@ ysyx_25080209_EXU EXU(
     wire [3:0]mem_wmask;
     wire [DATA_WID-1:0]mem_rdata;
     wire [2:0]mem_rmask;
+    wire [ADDR_WID-1:0]LSU_npc;
     //中转信号
     wire LSU_reg_wen,LSU_csr_wen,LSU_csr_ren;
     //LSUstate
@@ -206,6 +209,8 @@ ysyx_25080209_LSU LSU(
     .EXU_csr_ren(EXU_csr_ren),
     .LSU_reg_wen(LSU_reg_wen),.LSU_csr_wen(LSU_csr_wen),
     .LSU_csr_ren(LSU_csr_ren),
+
+    .EXU_npc(EXU_npc),.LSU_npc(LSU_npc),
 
     .EXU_valid(EXU_valid),.WBU_ready(WBU_ready),
     .LSU_ready(LSU_ready),.LSU_valid(LSU_valid),

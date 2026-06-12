@@ -27,6 +27,7 @@ typedef struct NPC_Status{
 extern NPC_Status npc_status;
 extern NPC npc;
 
+void print_reg(NPC cpu, int num);
 void print_regs(NPC cpu);
 
 void moniter_init(int argc , char *argv[]);

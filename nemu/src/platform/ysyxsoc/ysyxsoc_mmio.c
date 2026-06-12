@@ -46,9 +46,9 @@ void ysyxsoc_write(paddr_t addr, int len, word_t data){
     case 1:* ((uint8_t*)(&mmio.mem[addr&mmio.mask]))
              = data&0x000000ff; break;
     case 2:* ((uint16_t*)(&mmio.mem[addr&mmio.mask]))
-             = data&0x000000ff; break;
+             = data&0x0000ffff; break;
     case 4:* ((uint32_t*)(&mmio.mem[addr&mmio.mask]))
-             = data&0x000000ff; break;
+             = data&0xffffffff; break;
     default:break;
     }
 }

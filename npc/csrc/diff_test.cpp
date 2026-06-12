@@ -45,16 +45,26 @@ void diff_init(){
 }
 
 int diff_checkregs(NPC ref){
+    int diff = 0;
+
     for (int i = 0; i < REGS_NUM; i++)
     {
-        if(ref.reg[i] != npc.reg[i]) return 0;
+        if(ref.reg[i] != npc.reg[i]){
+            printf("diff_test: ref: ");
+            print_reg(ref,i);
+            printf("diff_test: npc: ");
+            print_reg(npc,i);
+            diff = 1;
+        } 
     }
-    if(ref.pc != npc.pc) return 0;
-    return 1;
+    if(ref.pc != npc.pc) {
+        diff = 1;
+    }
+    return diff;
 }
 
 void checkregs(NPC ref){
-    if(!diff_checkregs(ref)){
+    if(diff_checkregs(ref)){
         npc_status.status = NPC_ABORT;
         npc_status.ebreak_ret = -1;
         printf("diff_test:状态不一致，终止！\n");

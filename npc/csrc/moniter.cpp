@@ -47,6 +47,14 @@ const char* regs_name[32] = {
   "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
 };
 
+void print_reg(NPC cpu, int num){
+    if(num == 32){
+        printf("pc:0x%x\n",cpu.pc);
+    }else if(num>=0 && num <32){
+        printf("%-3s:0x%x\n",regs_name[num],cpu.reg[num]);
+    }
+}
+
 void print_regs(NPC cpu){
     printf("pc:0x%x\n",cpu.pc);
     for (int i = 0; i < 32 ; i++)

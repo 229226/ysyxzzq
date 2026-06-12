@@ -8,7 +8,7 @@
 #define ADDR_MROM   0x20000000
 #define EADDR_MROM  0x20000fff
 #define ADDR_SRAM   0x0f000000
-#define EADDR_SRAM  0x0fffffff
+#define EADDR_SRAM  0x0f001fff
 
 typedef enum MMIO_RW {OR,OW,RAW} MMIO_RW;
 
