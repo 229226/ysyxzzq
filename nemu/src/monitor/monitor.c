@@ -15,6 +15,7 @@
 
 #include <isa.h>
 #include <memory/paddr.h>
+#include <platform/ysyxsoc/ysyxsoc_mmio.h>
 
 void init_rand();
 void init_log(const char *log_file);
@@ -61,7 +62,10 @@ static long load_img() {
   Log("The image is %s, size = %ld", img_file, size);
 
   fseek(fp, 0, SEEK_SET);
-  int ret = fread(guest_to_host(RESET_VECTOR), size, 1, fp);
+  
+  int ret;
+  YSYXSOC_MMIO ysyxsoc_mem = ysyx_mmio_find(0x20000000);
+  IFDEF(CONFIG_PLATFORM_YSYXSOC,ret = fread(ysyxsoc_mem.mem,size,1,fp));
   assert(ret == 1);
 
   fclose(fp);

@@ -7,7 +7,7 @@ void ysyxsoc_sram_init(){
     .addr = ADDR_SRAM,
     .eaddr = EADDR_SRAM,
     .mem = ysyx_sram_mem,
-    .mask = 0x00ffffff,
+    .mask = 0x00001fff,
     .access = RAW
     };
 

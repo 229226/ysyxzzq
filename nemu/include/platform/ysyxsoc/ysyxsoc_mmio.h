@@ -19,6 +19,7 @@ typedef struct YSYXSOC_MMIO {
     MMIO_RW access;
 } YSYXSOC_MMIO;
 
+YSYXSOC_MMIO ysyx_mmio_find(paddr_t addr);
 void ysyxsoc_mmio_init();
 int ysyxsoc_add(YSYXSOC_MMIO mmio);
 word_t ysyxsoc_read(paddr_t addr, int len);

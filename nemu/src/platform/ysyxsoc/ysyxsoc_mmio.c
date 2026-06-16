@@ -28,27 +28,25 @@ YSYXSOC_MMIO ysyx_mmio_find(paddr_t addr){
 
 word_t ysyxsoc_read(paddr_t addr, int len){
     YSYXSOC_MMIO mmio = ysyx_mmio_find(addr);
-    uint32_t data = * ((uint32_t*)(&mmio.mem[addr&mmio.mask]));
+    paddr_t *raddr = (paddr_t *)(mmio.mem + (addr&mmio.mask));
     switch (len)
     {
-    case 1:data = data&0x000000ff; break;
-    case 2:data = data&0x0000ffff; break;
-    case 4:data = data&0xffffffff; break;
-    default:data = 0;break;
+    case 1: return *(uint8_t  *)raddr;
+    case 2: return *(uint16_t *)raddr;
+    case 4: return *(uint32_t *)raddr;
+    default:break;
     }
-    return data;
+    return 0;
 }
 
 void ysyxsoc_write(paddr_t addr, int len, word_t data){
     YSYXSOC_MMIO mmio = ysyx_mmio_find(addr);
+    paddr_t *waddr = (paddr_t *)(mmio.mem + (addr&mmio.mask));
     switch (len)
     {
-    case 1:* ((uint8_t*)(&mmio.mem[addr&mmio.mask]))
-             = data&0x000000ff; break;
-    case 2:* ((uint16_t*)(&mmio.mem[addr&mmio.mask]))
-             = data&0x0000ffff; break;
-    case 4:* ((uint32_t*)(&mmio.mem[addr&mmio.mask]))
-             = data&0xffffffff; break;
+    case 1: *(uint8_t  *)waddr = data; return;
+    case 2: *(uint16_t *)waddr = data; return;
+    case 4: *(uint32_t *)waddr = data; return;
     default:break;
     }
 }

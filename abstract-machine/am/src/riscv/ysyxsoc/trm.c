@@ -1,15 +1,15 @@
 #include <am.h>
 #include <klib-macros.h>
 #include <ysyxsoc.h>
+#include <klib.h>
 
+extern char _data_loadaddr,_sdata,_edata;
 extern char _heap_start;
+extern char _heap_end;
+Area heap = RANGE(&_heap_start, &_heap_end);
+
 int main(const char *args);
 
-extern char _sram_start;
-#define SRAM_SIZE (4 * 1024)
-#define SRAM_END  ((uintptr_t)&_sram_start + SRAM_SIZE)
-
-Area heap = RANGE(&_heap_start, SRAM_END);
 static const char mainargs[MAINARGS_MAX_LEN] = MAINARGS_PLACEHOLDER; // defined in CFLAGS
 
 void putch(char ch) {
@@ -17,11 +17,12 @@ void putch(char ch) {
 }
 
 void halt(int code) {
-  __asm__ volatile ("ebreak");
+  __asm__ volatile("mv a0, %0; ebreak" : :"r"(code));
   while (1);
 }
 
 void _trm_init() {
+  memcpy(&_sdata,&_data_loadaddr,&_edata-&_sdata);
   int ret = main(mainargs);
   halt(ret);
 }
