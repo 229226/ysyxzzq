@@ -349,7 +349,7 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
     default:arsize = 3'b000;
     endcase
   end
-  assign io_master_awaddr = waddr&32'hfffffffC;
+  assign io_master_awaddr = waddr;
   assign io_master_awsize = awsize;
   assign io_master_awburst = 2'b01;
   assign io_master_wlast = 1;
@@ -357,7 +357,7 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   assign io_master_wdata = AXI4_wdata;
   assign io_master_wstrb = AXI4_strb;
 
-  assign io_master_araddr = raddr&32'hfffffffC;
+  assign io_master_araddr = raddr;
   assign io_master_arsize = arsize;
   assign io_master_arburst = 2'b01;
 

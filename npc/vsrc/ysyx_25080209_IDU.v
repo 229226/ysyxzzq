@@ -143,7 +143,7 @@ MuxKeyWithDefault #(2,7,1) Mux_pc_rs1  (pc_rs1,opcode,1'b0,{
 //1 rs2
 MuxKeyWithDefault #(2,7,1) Mux_rs2_imm (rs2_imm,opcode,1'b0,{
     //0 auipc,jal,jalr
-    7'b1100011,1'b1,   //bwq,bnw,blt,bge,bltu,bgeu
+    7'b1100011,1'b1,   //bwq,bne,blt,bge,bltu,bgeu
     //0 lb,lh,lw,lbu,lhu,sb,sh,sw,addi,slti,sltiu,xori,ori,andi,slli,srli,srai
     7'b0110011,1'b1   //add,sub,sll,slt,sltu,xor,srl,sra,or,and
 });

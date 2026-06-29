@@ -13,7 +13,8 @@ int main(const char *args);
 static const char mainargs[MAINARGS_MAX_LEN] = MAINARGS_PLACEHOLDER; // defined in CFLAGS
 
 void putch(char ch) {
-  outb(SERIAL_ADDR,ch);
+  while((inb(SERIAL_BASE+5)&0b00100000) != 0b00100000);
+  outb(SERIAL_BASE,ch);
 }
 
 void halt(int code) {
@@ -22,7 +23,11 @@ void halt(int code) {
 }
 
 void _trm_init() {
+  //bootloader
   memcpy(&_sdata,&_data_loadaddr,&_edata-&_sdata);
+
+  ioe_init();
+
   int ret = main(mainargs);
   halt(ret);
 }

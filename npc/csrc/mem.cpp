@@ -9,7 +9,7 @@ const int mem_size = 0x00001000;
 //SoC
 extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
 extern "C" void mrom_read(int32_t addr, int32_t *data) {
-    *data = *(int32_t *)addr;
+    *data = *(int32_t *)(addr&0xfffffffC);
     // *data = 0x00100073;
 }
 

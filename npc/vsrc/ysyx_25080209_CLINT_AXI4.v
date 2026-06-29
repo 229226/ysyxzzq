@@ -195,9 +195,9 @@ always @(posedge clk) begin
     else begin
         mtime <= mtime + 1;
         if(r_req) begin
-            case (io_slave_araddr[2:0])
-            3'b000:io_slave_rdata <= mtime[DATA_WID-1:0];
-            3'b100:io_slave_rdata <= mtime[DATA_WID*2-1:DATA_WID];
+            case (io_slave_araddr[2])
+            1'b0:io_slave_rdata <= mtime[DATA_WID-1:0];
+            1'b1:io_slave_rdata <= mtime[DATA_WID*2-1:DATA_WID];
             default:;
             endcase
         end

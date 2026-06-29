@@ -3,6 +3,6 @@
 
 #include ISA_H
 
-#define SERIAL_ADDR 0x10000000
+#define SERIAL_BASE 0x10000000
 
 #endif
