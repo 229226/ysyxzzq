@@ -2,6 +2,7 @@ AM_SRCS := riscv/ysyxsoc/start.S \
            riscv/ysyxsoc/trm.c \
 		   riscv/ysyxsoc/ioe.c\
 		   riscv/ysyxsoc/uart.c\
+		   riscv/ysyxsoc/spi.c\
            platform/dummy/vme.c \
            platform/dummy/mpe.c
 
@@ -14,7 +15,7 @@ MAINARGS_MAX_LEN = 64
 MAINARGS_PLACEHOLDER = The insert-arg rule in Makefile will insert mainargs here.
 CFLAGS += -DMAINARGS_MAX_LEN=$(MAINARGS_MAX_LEN) -DMAINARGS_PLACEHOLDER=\""$(MAINARGS_PLACEHOLDER)"\"
 
-NPCFLAGS += -b
+#NPCFLAGS += -b
 
 insert-arg: image
 	@python $(AM_HOME)/tools/insert-arg.py $(IMAGE).bin $(MAINARGS_MAX_LEN) "$(MAINARGS_PLACEHOLDER)" "$(mainargs)"

@@ -5,12 +5,14 @@
 #include "timer.hpp"
 
 const int mem_size = 0x00001000;
+static uint8_t flash[0x10000000];
 
 //SoC
-extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+extern "C" void flash_read(int32_t addr, int32_t *data) {
+    *data = *(int32_t *)((uint64_t)flash+(addr&0xfffffffC));
+}
 extern "C" void mrom_read(int32_t addr, int32_t *data) {
     *data = *(int32_t *)(addr&0xfffffffC);
-    // *data = 0x00100073;
 }
 
 void init_mem(char *file_img){
@@ -19,12 +21,12 @@ void init_mem(char *file_img){
         assert(0);
     }
 
-    int fd_img = open(file_img,O_RDONLY,0644);
-    assert(fd_img != -1);
+    int img_fd = open(file_img,O_RDONLY,0644);
+    assert(img_fd != -1);
 
-    struct stat stat_img;
-    assert(stat(file_img,&stat_img) == 0);
-    int img_size = stat_img.st_size;
+    struct stat img_stat;
+    assert(stat(file_img,&img_stat) == 0);
+    int img_size = img_stat.st_size;
 
     int mem_fd = open("./build/mem", O_CREAT|O_RDWR,0644);
     assert(mem_fd != -1);
@@ -37,10 +39,26 @@ void init_mem(char *file_img){
 
     memset((void *)RESETADDR, 0, mem_size);
 
-    ssize_t ret = read(fd_img,(void *)RESETADDR,img_size);
+    //烧入MROM
+    ssize_t ret = read(img_fd,(void *)RESETADDR,img_size);
+    assert(ret != -1);
+    //烧入flash
+    // lseek(img_fd, 0, SEEK_SET);
+    // ret = read(img_fd,flash,img_size);
+    // assert(ret != -1);
+    int ct_fd = open("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",O_RDONLY,0644);
+    assert(ct_fd != -1);
+
+    struct stat ct_stat;
+    assert(stat("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",&ct_stat) == 0);
+    int ct_size = ct_stat.st_size;
+    
+    ret = read(ct_fd,flash,ct_size);
     assert(ret != -1);
 
-    close(fd_img);
+    close(ct_fd);
+
+    close(img_fd);
     close(mem_fd);
 }
 

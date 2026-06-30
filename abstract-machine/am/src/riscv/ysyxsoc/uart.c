@@ -1,10 +1,10 @@
 #include <ysyxsoc.h>
 #include <am.h>
 
-#define DIVL_ADDR       SERIAL_BASE+0
-#define DIVH_ADDR       SERIAL_BASE+1
+#define DIVL_ADDR       SERIAL_ADDR_BASE+0
+#define DIVH_ADDR       SERIAL_ADDR_BASE+1
 
-#define LCR_ADDR        SERIAL_BASE+3
+#define LCR_ADDR        SERIAL_ADDR_BASE+3
 #define LCR_DIV         0b10000000
 #define LCR_LEN_8BIT    0b00000011
 

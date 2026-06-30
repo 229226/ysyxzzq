@@ -13,8 +13,8 @@ int main(const char *args);
 static const char mainargs[MAINARGS_MAX_LEN] = MAINARGS_PLACEHOLDER; // defined in CFLAGS
 
 void putch(char ch) {
-  while((inb(SERIAL_BASE+5)&0b00100000) != 0b00100000);
-  outb(SERIAL_BASE,ch);
+  while((inb(SERIAL_ADDR_BASE+5)&0b00100000) != 0b00100000);
+  outb(SERIAL_ADDR_BASE,ch);
 }
 
 void halt(int code) {
