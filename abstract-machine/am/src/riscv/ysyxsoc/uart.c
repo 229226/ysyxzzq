@@ -17,7 +17,7 @@ void clr_rw(uintptr_t addr,uint8_t mask){
     outb(addr,(rdata&(~mask)));
 }
 
-void __uart_init(){
+void __am_uart_init(){
     set_rw(LCR_ADDR,LCR_LEN_8BIT);
     set_rw(LCR_ADDR,LCR_DIV);
     outb(DIVH_ADDR,0b00000000);

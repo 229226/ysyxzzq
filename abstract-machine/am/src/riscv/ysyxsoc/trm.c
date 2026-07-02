@@ -28,6 +28,19 @@ void _trm_init() {
 
   ioe_init();
 
+  char text[5];
+  text[4] = '\0';
+  uint32_t mvendorid;
+  uint32_t marchid;
+  __asm__ volatile("csrr %0, 0xF11" : "=r"(mvendorid)); 
+  __asm__ volatile("csrr %0, 0xF12" : "=r"(marchid)); 
+  *((uint32_t*)text) =  ((mvendorid & 0x000000FFu) << 24) |
+                        ((mvendorid & 0x0000FF00u) << 8)  |
+                        ((mvendorid & 0x00FF0000u) >> 8)  |
+                        ((mvendorid & 0xFF000000u) >> 24);
+  printf("%s",text);
+  printf("%d\n",marchid);
+
   int ret = main(mainargs);
   halt(ret);
 }

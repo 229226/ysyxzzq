@@ -189,7 +189,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32,DATA_WID = 32)(
 //PC
     reg [ADDR_WID-1:0]dnpc;
     always @(posedge clk) begin
-        if(rst) pc <= 32'h2000_0000;
+        if(rst) pc <= 32'h3000_0000;
         else begin
             if(PC_wen)  pc <= dnpc;
         end

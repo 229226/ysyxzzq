@@ -4,7 +4,7 @@
 #include "npc_ioe.hpp"
 #include "timer.hpp"
 
-const int mem_size = 0x00001000;
+const int mem_size = 0x10000000;
 static uint8_t flash[0x10000000];
 
 //SoC
@@ -28,38 +28,43 @@ void init_mem(char *file_img){
     assert(stat(file_img,&img_stat) == 0);
     int img_size = img_stat.st_size;
 
-    int mem_fd = open("./build/mem", O_CREAT|O_RDWR,0644);
-    assert(mem_fd != -1);
-
-    int ret_ft = ftruncate(mem_fd,mem_size);
-    assert(ret_ft != -1);
-    
-    void* mmap_ret = mmap((void *)RESETADDR,mem_size, PROT_READ|PROT_WRITE,MAP_SHARED,mem_fd, 0);
-    assert(mmap_ret != MAP_FAILED);
-
-    memset((void *)RESETADDR, 0, mem_size);
-
     //烧入MROM
-    ssize_t ret = read(img_fd,(void *)RESETADDR,img_size);
-    assert(ret != -1);
-    //烧入flash
-    // lseek(img_fd, 0, SEEK_SET);
-    // ret = read(img_fd,flash,img_size);
-    // assert(ret != -1);
-    int ct_fd = open("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",O_RDONLY,0644);
-    assert(ct_fd != -1);
+    // int mem_fd = open("./build/mem", O_CREAT|O_RDWR,0644);
+    // assert(mem_fd != -1);
 
-    struct stat ct_stat;
-    assert(stat("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",&ct_stat) == 0);
-    int ct_size = ct_stat.st_size;
+    // int ret_ft = ftruncate(mem_fd,mem_size);
+    // assert(ret_ft != -1);
     
-    ret = read(ct_fd,flash,ct_size);
+    // void* mmap_ret = mmap((void *)RESETADDR,mem_size, PROT_READ|PROT_WRITE,MAP_SHARED,mem_fd, 0);
+    // assert(mmap_ret != MAP_FAILED);
+
+    // memset((void *)RESETADDR, 0, mem_size);
+
+    // ssize_t ret = read(img_fd,(void *)RESETADDR,img_size);
+    // assert(ret != -1);
+
+    //烧入flash
+    //lseek(img_fd, 0, SEEK_SET);
+    int ret = read(img_fd,flash,img_size);
     assert(ret != -1);
 
-    close(ct_fd);
+    //将char-test加载到flash
+    // int ct_fd = open("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",O_RDONLY,0644);
+    // assert(ct_fd != -1);
+
+    // struct stat ct_stat;
+    // assert(stat("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",&ct_stat) == 0);
+    // int ct_size = ct_stat.st_size;
+    
+    // ret = read(ct_fd,flash,ct_size);
+    // assert(ret != -1);
+
+    // close(ct_fd);
 
     close(img_fd);
-    close(mem_fd);
+
+    //烧入mrom
+    //close(mem_fd);
 }
 
 int pmem_check(uint32_t addr){

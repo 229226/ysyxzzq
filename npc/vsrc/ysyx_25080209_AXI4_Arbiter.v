@@ -170,16 +170,22 @@ always @(*) begin
     default:nArbiter_state = 2'b00;
     endcase
 end
-always @(*) begin
-    arbiter_valid = 0;
-    m0_valid = 0;m1_valid = 0;
+always @(posedge clk) begin
+    arbiter_valid <= 0;
+    m0_valid <= 0;m1_valid <= 0;
     case (Arbiter_state)
     2'b00:begin
-        if(m0_req) begin m0_valid = 1;arbiter_valid = 1;end
-        else if(m1_req) begin m1_valid = 1;arbiter_valid = 1;end
+        if(m0_req) begin m0_valid <= 1;arbiter_valid <= 1;end
+        else if(m1_req) begin m1_valid <= 1;arbiter_valid <= 1;end
     end
-    2'b01:begin m0_valid = 1;arbiter_valid = 1;end
-    2'b10:begin m1_valid = 1;arbiter_valid = 1;end
+    2'b01:begin 
+        if(m0_fin) begin m0_valid <= 0;arbiter_valid <= 0; end
+        else begin m0_valid <= 1;arbiter_valid <= 1; end 
+    end
+    2'b10:begin 
+        if(m1_fin) begin m1_valid <= 0;arbiter_valid <= 0; end
+        else begin m1_valid <= 1;arbiter_valid <= 1; end 
+    end
     default:;
     endcase
 end
