@@ -12,9 +12,9 @@
 #include <string.h>
 
 //#define DIFF_CONFIG
-#define TRACE_CONFIG
-#define ITRACE_CONFIG
+//#define TRACE_CONFIG
+//#define ITRACE_CONFIG
 //#define MTRACE_CONFIG
-#define FST_CONFIG
+//#define FST_CONFIG
 
 #endif
