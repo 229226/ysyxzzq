@@ -11,6 +11,20 @@ static VerilatedContext* contextp = NULL;
 
 static int clock_num = 0;
 
+extern "C" void ebreak(){
+  npc_status.ebreak_ret = npc.reg[10];
+  npc_status.status = NPC_ABORT;
+}
+extern "C" void read_reg(int val,int num){
+  ((int *)&npc)[num] = val;
+}
+extern "C" void ins_state(int state){
+  if(state == 1){
+    npc_status.ins_state = INS_FINI;
+  }
+  else npc_status.ins_state = INS_EXEC;
+}
+
 void sim_init(){
     Verilated::traceEverOn(true);
     contextp = new VerilatedContext;

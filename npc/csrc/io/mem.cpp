@@ -3,6 +3,7 @@
 #include "trace.hpp"
 #include "npc_ioe.hpp"
 #include "timer.hpp"
+#include "psram.hpp"
 
 const int mem_size = 0x10000000;
 static uint8_t flash[0x10000000];

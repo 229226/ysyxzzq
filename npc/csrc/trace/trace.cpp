@@ -12,6 +12,13 @@ static int rb_full = 0;
 
 FILE *trace_file;
 
+extern "C" void itrace(int ins){
+  #ifdef ITRACE_CONFIG
+    if(npc_status.ins_state == INS_FINI) 
+    itrace_print(ins);
+  #endif
+}
+
 void trace_init(){
     trace_file = fopen("./build/npc_log","w");
     assert(trace_file);

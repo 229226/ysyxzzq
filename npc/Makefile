@@ -37,7 +37,8 @@ LIBS = -lreadline
 WAVE_FILE = $(BUILD_PATH)/waveform.fst
 
 CFLAGS += -Wall -DTOP_NAME=V$(TOP_NAME)
-CFLAGS += -I$(CINC_PATH) $(LIBS)
+CFLAGS += -I$(CINC_PATH) -I$(CINC_PATH)/io -I$(CINC_PATH)/trace
+CFLAGS += $(LIBS)
 
 LDFLAGS += -lreadline
 
