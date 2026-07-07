@@ -3,7 +3,6 @@
 #include <ysyxsoc.h>
 #include <klib.h>
 
-extern char _data_loadaddr,_sdata,_edata;
 extern char _heap_start;
 extern char _heap_end;
 Area heap = RANGE(&_heap_start, &_heap_end);
@@ -23,9 +22,6 @@ void halt(int code) {
 }
 
 void _trm_init() {
-  //bootloader
-  memcpy(&_sdata,&_data_loadaddr,&_edata-&_sdata);
-
   ioe_init();
 
   char text[5];
