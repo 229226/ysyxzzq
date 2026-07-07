@@ -112,7 +112,7 @@ extern "C" int pmem_read(int raddr){
     int data = *(int *)addr;
 
     #ifdef MTRACE_CONFIG
-        mtrace_pread(addr,data);
+        mtrace_read(addr,data,4);
     #endif
     return data;
 }
@@ -138,7 +138,7 @@ extern "C" void pmem_write(int waddr, int wdata, char wmask){
         break;
     }
     #ifdef MTRACE_CONFIG
-        mtrace_pwrite(waddr,wdata);
+        mtrace_write(waddr,wdata,4);
     #endif
     
 }

@@ -10,7 +10,7 @@ void itrace_print(int ins);
 
 void itrace_rb_pr();
 
-void mtrace_pread(uint32_t addr,uint32_t data);
-void mtrace_pwrite(uint32_t addr,uint32_t data);
+void mtrace_read(uint32_t addr,uint32_t data,int data_wid);
+void mtrace_write(uint32_t addr,uint32_t data,int data_wid);
 
 #endif

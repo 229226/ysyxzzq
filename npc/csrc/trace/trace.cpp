@@ -1,6 +1,7 @@
 #include "trace.hpp"
 #include "disasm.hpp"
 #include "moniter.hpp"
+#include <stdarg.h>
 
 #define ITRACE_BUFLEN 128
 #define ITRACE_RBLEN 20
@@ -22,6 +23,14 @@ extern "C" void itrace(int ins){
 void trace_init(){
     trace_file = fopen("./build/npc_log","w");
     assert(trace_file);
+}
+
+void trace_write(const char *format,...){
+    va_list args;
+    va_start(args, format);          
+    vfprintf(trace_file, format, args); 
+    fflush(trace_file);
+    va_end(args);
 }
 
 void itrace_rb_add(char *str){
@@ -58,16 +67,13 @@ void itrace_print(int ins){
         printf("itrace: 反编译失败 pc:0x%08x ins:0x%08x\n",npc.pc,ins);
         return;}
     itrace_rb_add(itrace_str);
-    fprintf(trace_file,"%s\n",itrace_str);
-    fflush(trace_file);
+    trace_write("%s\n",itrace_str);
     return;
 }
 
-void mtrace_pread(uint32_t addr,uint32_t data){
-    fprintf(trace_file,"mtrace:read addr=0x%08x data=0x%08x\n",addr,data);
-    fflush(trace_file);
+void mtrace_read(uint32_t addr,uint32_t data,int data_wid){
+    trace_write("mtrace:read addr=0x%08x data=0x%0*x\n",addr,2*data_wid,data);
 }
-void mtrace_pwrite(uint32_t addr,uint32_t data){
-    fprintf(trace_file,"mtrace:write addr=0x%08x data=0x%08x\n",addr,data);
-    fflush(trace_file);
+void mtrace_write(uint32_t addr,uint32_t data,int data_wid){
+    trace_write("mtrace:write addr=0x%08x data=0x%0*x\n",addr,2*data_wid,data);
 }
