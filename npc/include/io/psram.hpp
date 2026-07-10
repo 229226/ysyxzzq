@@ -4,6 +4,6 @@
 #include "common.hpp"
 
 #define PSRAM_ADDR_BASE 0x80000000
-#define PSRAM_SIZE      0x20000000
+#define PSRAM_SIZE      0x00400000
 
 #endif

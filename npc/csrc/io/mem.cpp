@@ -5,8 +5,8 @@
 #include "timer.hpp"
 #include "psram.hpp"
 
-const int mem_size = 0x10000000;
-static uint8_t flash[0x10000000];
+const int mem_size = 0x01000000;
+static uint8_t flash[mem_size];
 
 //SoC
 extern "C" void flash_read(int32_t addr, int32_t *data) {
@@ -29,43 +29,10 @@ void init_mem(char *file_img){
     assert(stat(file_img,&img_stat) == 0);
     int img_size = img_stat.st_size;
 
-    //烧入MROM
-    // int mem_fd = open("./build/mem", O_CREAT|O_RDWR,0644);
-    // assert(mem_fd != -1);
-
-    // int ret_ft = ftruncate(mem_fd,mem_size);
-    // assert(ret_ft != -1);
-    
-    // void* mmap_ret = mmap((void *)RESETADDR,mem_size, PROT_READ|PROT_WRITE,MAP_SHARED,mem_fd, 0);
-    // assert(mmap_ret != MAP_FAILED);
-
-    // memset((void *)RESETADDR, 0, mem_size);
-
-    // ssize_t ret = read(img_fd,(void *)RESETADDR,img_size);
-    // assert(ret != -1);
-
-    //烧入flash
-    //lseek(img_fd, 0, SEEK_SET);
     int ret = read(img_fd,flash,img_size);
     assert(ret != -1);
 
-    //将char-test加载到flash
-    // int ct_fd = open("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",O_RDONLY,0644);
-    // assert(ct_fd != -1);
-
-    // struct stat ct_stat;
-    // assert(stat("/home/zzq/ysyx-workbench/npc/char_test/char-test.bin",&ct_stat) == 0);
-    // int ct_size = ct_stat.st_size;
-    
-    // ret = read(ct_fd,flash,ct_size);
-    // assert(ret != -1);
-
-    // close(ct_fd);
-
     close(img_fd);
-
-    //烧入mrom
-    //close(mem_fd);
 }
 
 int pmem_check(uint32_t addr){

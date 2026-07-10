@@ -6,16 +6,20 @@
 #define YSYX_MMIO_MNUM 16
 
 #define ADDR_MROM   0x20000000
-#define EADDR_MROM  0x20000fff
+#define LEN_MROM    0x00001000
 #define ADDR_SRAM   0x0f000000
-#define EADDR_SRAM  0x0f001fff
+#define LEN_SRAM    0x00002000
+#define ADDR_FLASH  0x30000000
+#define LEN_FLASH   0x01000000
+#define ADDR_PSRAM  0x80000000
+#define LEN_PSRAM   0x00400000
 
 typedef enum MMIO_RW {OR,OW,RAW} MMIO_RW;
 
 typedef struct YSYXSOC_MMIO {
-    paddr_t addr,eaddr;
+    paddr_t addr;
+    uint32_t lenth;
     uint8_t *mem;
-    uint32_t mask;
     MMIO_RW access;
 } YSYXSOC_MMIO;
 

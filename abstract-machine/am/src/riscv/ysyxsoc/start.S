@@ -5,5 +5,6 @@
 _start:
   mv s0, zero
   la sp, _stack_pointer
-  call _bootloader
+  call _FSBL
+  call _SSBL
   call _trm_init

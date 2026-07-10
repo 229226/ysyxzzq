@@ -64,7 +64,7 @@ static long load_img() {
   fseek(fp, 0, SEEK_SET);
   
   int ret;
-  YSYXSOC_MMIO ysyxsoc_mem = ysyx_mmio_find(0x20000000);
+  YSYXSOC_MMIO ysyxsoc_mem = ysyx_mmio_find(CONFIG_MBASE);
   IFDEF(CONFIG_PLATFORM_YSYXSOC,ret = fread(ysyxsoc_mem.mem,size,1,fp));
   assert(ret == 1);
 
