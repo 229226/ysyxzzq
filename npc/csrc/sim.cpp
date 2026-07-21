@@ -2,6 +2,7 @@
 #include "moniter.hpp"
 #include "diff_test.hpp"
 #include "trace.hpp"
+#include <nvboard.h>
 
 static TOP_NAME *top = new TOP_NAME;
 static VerilatedContext* contextp = NULL;
@@ -25,29 +26,36 @@ extern "C" void ins_state(int state){
   else npc_status.ins_state = INS_EXEC;
 }
 
+void nvboard_bind_all_pins(TOP_NAME* top);
+
 void sim_init(){
-    Verilated::traceEverOn(true);
-    contextp = new VerilatedContext;
+  #ifdef NV_CONFIG
+  nvboard_bind_all_pins(top);
+  nvboard_init();
+  #endif
 
-    #ifdef FST_CONFIG
-    tfp = new VerilatedFstC;
-    top->trace(tfp,99);
-    tfp->open("./build/waveform.fst");
-    #endif
+  Verilated::traceEverOn(true);
+  contextp = new VerilatedContext;
 
-    top->reset = 1;
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
-    sim_clock();
+  #ifdef FST_CONFIG
+  tfp = new VerilatedFstC;
+  top->trace(tfp,99);
+  tfp->open("./build/waveform.fst");
+  #endif
 
-    top->reset = 0;
+  top->reset = 1;
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+  sim_clock();
+
+  top->reset = 0;
 }
 
 void sim_exit(){
@@ -71,6 +79,10 @@ void step_and_dump(){
 
   #ifdef FST_CONFIG
   tfp->dump(contextp->time());
+  #endif
+
+  #ifdef NV_CONFIG
+  nvboard_update();
   #endif
 }
 

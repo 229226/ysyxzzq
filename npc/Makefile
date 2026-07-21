@@ -1,4 +1,4 @@
-TOP_NAME = ysyxSoCTop
+TOP_NAME = ysyxSoCFull
 
 VERILATOR = verilator
 VERILATOR_FLAGS += -MMD --build -cc --trace-fst -O3 --autoflush
@@ -9,8 +9,8 @@ GTKWAVE = gtkwave
 
 NPC_PATH = $(abspath $(NPC_HOME))
 
-WORK_PATH = $(pwd)
-BUILD_PATH = $(WORK_PATH)./build
+WORK_PATH := $(shell pwd)
+BUILD_PATH = $(WORK_PATH)/build
 OBJ_DIR = $(BUILD_PATH)/obj_dir
 BIN = $(BUILD_PATH)/$(TOP_NAME)
 
@@ -32,15 +32,36 @@ SOC_VINC_PATH += -I$(SOC_PATH)/perip/spi/rtl
 VSRC += $(shell find $(SOC_VSRC_PATH) -name "*.v")
 VSRC += $(SOC_PATH)/build/ysyxSoCFull.v
 
+#nvboard
+INC_PATH ?=
+NXDC_FILES = constr/ysyxSoC.nxdc
+
+# constraint file
+SRC_AUTO_BIND = $(abspath $(BUILD_PATH)/auto_bind.cpp)
+$(SRC_AUTO_BIND): $(NXDC_FILES)
+	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+
+CSRC += $(SRC_AUTO_BIND)
+
+# rules for NVBoard
+include $(NVBOARD_HOME)/scripts/nvboard.mk
+
+#readline
 LIBS = -lreadline
+LDFLAGS += -lreadline
+
+#capstone
+LIBCAPSTONE = $(NEMU_HOME)/tools/capstone/repo/libcapstone.so.5
+CXXFLAGS += -I$(NEMU_HOME)/tools/capstone/repo/include
+csrc/disasm.c: $(LIBCAPSTONE)
+$(LIBCAPSTONE):
+	$(MAKE) -C $(NEMU_HOME)tools/capstone
 
 WAVE_FILE = $(BUILD_PATH)/waveform.fst
 
-CFLAGS += -Wall -DTOP_NAME=V$(TOP_NAME)
-CFLAGS += -I$(CINC_PATH) -I$(CINC_PATH)/io -I$(CINC_PATH)/trace
-CFLAGS += $(LIBS)
-
-LDFLAGS += -lreadline
+CXXFLAGS += -Wall -DTOP_NAME=V$(TOP_NAME)
+CXXFLAGS += -I$(CINC_PATH) -I$(CINC_PATH)/io -I$(CINC_PATH)/trace -I$(INC_PATH)
+CXXFLAGS += $(LIBS)
 
 ARGS ?=
 IMG ?=
@@ -50,19 +71,13 @@ all: $(BIN)
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
 
-LIBCAPSTONE = $(NEMU_HOME)/tools/capstone/repo/libcapstone.so.5
-CFLAGS += -I $(NEMU_HOME)/tools/capstone/repo/include
-csrc/disasm.c: $(LIBCAPSTONE)
-$(LIBCAPSTONE):
-	$(MAKE) -C $(NEMU_HOME)tools/capstone
-
-$(BIN):$(VSRC) $(CSRC) $(OBJ_DIR)
+$(BIN):$(VSRC) $(CSRC) $(OBJ_DIR) $(NVBOARD_ARCHIVE)
 	@rm -rf $(OBJ_DIR)
 	@$(VERILATOR) $(VERILATOR_FLAGS)\
 		--top-module $(TOP_NAME)\
-		$(VSRC) $(CSRC) \
+		$(VSRC) $(CSRC) $(NVBOARD_ARCHIVE)\
 		$(SOC_VINC_PATH)\
-		$(addprefix -CFLAGS ,$(CFLAGS))\
+		$(addprefix -CFLAGS ,$(CXXFLAGS))\
 		$(addprefix -LDFLAGS ,$(LDFLAGS))\
 		--Mdir $(OBJ_DIR)		\
 		--exe -o $(abspath $(BIN))

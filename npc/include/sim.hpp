@@ -3,15 +3,15 @@
 
 #include <verilated.h>
 #include <verilated_fst_c.h>
-#include <VysyxSoCTop.h>
+#include <VysyxSoCFull.h>
 //DPI-C
 #include "svdpi.h"
-#include <VysyxSoCTop__Dpi.h>
+#include <VysyxSoCFull__Dpi.h>
 
 #include "common.hpp"
 #include "mem.hpp"
 
-#define TOP_NAME VysyxSoCTop
+#define TOP_NAME VysyxSoCFull
 
 void sim_init();
 void sim_exit();
