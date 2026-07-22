@@ -175,13 +175,13 @@ __attribute__((section("FSBL"))) void *FSBL_memcpy(void *restrict dst, const voi
 extern char _text_LMA,_text_sVMA,_text_eVMA;
 extern char _data_LMA,_data_sVMA,_data_eVMA;
 //用于RT-Thread
-//extern char _data_extra_LMA,_data_extra_sVMA,_data_extra_eVMA;
+extern char _data_extra_LMA,_data_extra_sVMA,_data_extra_eVMA;
 
 __attribute__((section("SSBL"))) void _SSBL(){
     SSBL_memcpy(&_text_sVMA,&_text_LMA,&_text_eVMA - &_text_sVMA);
     SSBL_memcpy(&_data_sVMA,&_data_LMA,&_data_eVMA - &_data_sVMA);
     //用于RT-Thread
-    //SSBL_memcpy(&_data_extra_sVMA,&_data_extra_LMA,&_data_extra_eVMA - &_data_extra_sVMA);
+    SSBL_memcpy(&_data_extra_sVMA,&_data_extra_LMA,&_data_extra_eVMA - &_data_extra_sVMA);
 }
 
 extern char _SSBL_LMA,_SSBL_sVMA,_SSBL_eVMA;

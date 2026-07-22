@@ -6,188 +6,184 @@
 #include <stdlib.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
-
-#define print_model(w_byte,w_s,w_d,w_x,w_0) \
-  int len_out = 0;\
-  int len_fmt = 0;\
-  va_list args;\
-  va_start(args, fmt);\
-  while (fmt[len_fmt] != '\0')\
-  {\
-    if(fmt[len_fmt] != '%'){\
-      w_byte\
-      len_out++;\
-      len_fmt++;\
-    }else{\
-      char *str = NULL;\
-      int str_len = 0;\
-      int num_int = 0;\
-      char str_num[12];\
-      switch (fmt[len_fmt+1])\
-      {\
-      case 's':\
-        str = va_arg(args,char *);\
-        str_len = strlen(str);\
-        w_s\
-        len_out += str_len;\
-        len_fmt += 2;\
-        break;\
-      case 'd':\
-        num_int = va_arg(args,int);\
-        str_len = int2string(num_int,str_num);\
-        w_d\
-        len_out += str_len;\
-        len_fmt += 2;\
-        break;\
-      case 'x':\
-        num_int = va_arg(args,int);\
-        str_len = hex2string(num_int,str_num);\
-        w_x\
-        len_out += str_len;\
-        len_fmt += 2;\
-        break;\
-      default:\
-        return -1;\
-        break;\
-      }\
-    }\
-  }\
-  w_0\
-  va_end(args);\
-  return len_out;\
-
-
-int int2string(int num_int,char *str);
-int hex2string(int num_int,char *str);
-
 int printf(const char *fmt, ...) {
-  print_model(
-    putch(fmt[len_fmt]);
-    ,
-    for (int i = 0; i < str_len; i++)
-    {
-      putch(str[i]);
+    va_list ap;
+    va_start(ap, fmt);
+
+    va_list ap_len;
+    va_copy(ap_len, ap);
+    int len = vsnprintf(NULL, 0, fmt, ap_len);
+    va_end(ap_len);
+
+    char buf[len + 1];
+
+    vsnprintf(buf, len + 1, fmt, ap);
+    va_end(ap);
+
+    for (int i = 0; i < len; ++i) {
+        putch(buf[i]);
     }
-    ,
-    for (int i = 0; i < str_len; i++)
-    {
-      putch(str_num[i]);
-    }
-    ,
-    for (int i = 0; i < str_len; i++)
-    {
-      putch(str_num[i]);
-    }
-    ,
-  )
+
+    return len;
 }
 
 int vsprintf(char *out, const char *fmt, va_list ap) {
-  panic("Not implemented");
+  return vsnprintf(out, (size_t)-1, fmt, ap);
 }
 
 int sprintf(char *out, const char *fmt, ...) {
-  print_model(
-    out[len_out] = fmt[len_fmt];
-    ,
-    strcpy(out+len_out,str);
-    ,
-    strcpy(out+len_out,str_num);
-    ,
-
-    ,
-    out[len_out] = '\0';
-  )
+    va_list ap;
+    va_start(ap, fmt);
+    int ret = vsprintf(out, fmt, ap);
+    va_end(ap);
+    return ret;
 }
 
 int snprintf(char *out, size_t n, const char *fmt, ...) {
-  panic("Not implemented");
+    va_list ap;
+    va_start(ap, fmt);
+    int ret = vsnprintf(out, n, fmt, ap);
+    va_end(ap);
+    return ret;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  panic("Not implemented");
-}
-
-int int2string(int num_int,char *str){
-  int str_len = 0; 
-  int my_num_int;
-
-  int is_neg = 0;
-
-  if (num_int == 0x80000000)
-  {
-    strcpy(str,"-2147483648");
-    return 11;
-  }else if(num_int < 0){
-    my_num_int = -num_int;
-    is_neg = 1;
-  }else if (num_int == 0)
-  {
-    str[str_len] = '0';
-    str_len++;
-    str[str_len] = '\0';
-    return str_len;
-  }else{
-    my_num_int = num_int;
-  }
-  
-  while (my_num_int > 0)
-  {
-    str[str_len] = '0' + (my_num_int % 10);
-    str_len++;
-    my_num_int /= 10;
-  }
-
-  if(is_neg){
-    str[str_len] = '-';
-    str_len++;
-  }
-
-  int start = 0;
-  int end = str_len-1;
-  char tmp;
-  while(start<end){
-    tmp = str[end];
-    str[end] = str[start];
-    str[start] = tmp;
-    start++;
-    end--;
-  }
-
-  str[str_len] = '\0';
-
-  return str_len;
-}
-char hex2char(int num){
-  if(num >= 0 && num <= 9){
-    return '0' + num;
-  }else if(num >= 10 && num <= 15){
-    return 'a' + (num-10);
-  }else{
-    return '?';
-  }
-}
-int hex2string(int num_int,char *str){
-  int num = 0;
-  int strlen = 0;
-  int start = 0;
-  for(int i = 0; i < 8 ; i ++){
-    num = ((num_int >> ((7-i)*4)) & 0xF);
-    if((start == 0) && num != 0){
-      str[strlen] = hex2char(num);
-      strlen++;
-      start = 1;
-    }else if(start == 1){
-      str[strlen] = hex2char(num);
-      strlen++;
+    if (n == 0) {
+        char dummy;
+        return vsnprintf(&dummy, 1, fmt, ap);
     }
-  }
 
-  if(start == 0){
-    str[0] = '0';
-    strlen++;
-  }
-  str[strlen] = '\0';
-  return strlen;
+    char *p = out;
+    char *end = out + n - 1; // 为 '\0' 保留一个位置
+    int total = 0;
+
+    while (*fmt && p < end) {
+        if (*fmt != '%') {
+            *p++ = *fmt++;
+            total++;
+            continue;
+        }
+
+        fmt++; // 跳过 '%'
+        if (*fmt == '\0') break;
+
+        switch (*fmt) {
+        case '%':
+            *p++ = '%';
+            total++;
+            break;
+        case 'c': {
+            char c = (char)va_arg(ap, int);
+            *p++ = c;
+            total++;
+            break;
+        }
+        case 's': {
+            const char *s = va_arg(ap, const char *);
+            if (s == NULL) s = "(null)";
+            while (*s && p < end) {
+                *p++ = *s++;
+                total++;
+            }
+            // 计算剩余未写入的字符数
+            while (*s++) total++;
+            break;
+        }
+        case 'd': {
+            int num = va_arg(ap, int);
+            // 处理负数
+            if (num < 0) {
+                if (p < end) *p++ = '-';
+                num = -num;
+                total++;
+            }
+            
+            char tmp[12];
+            char *t = tmp + sizeof(tmp) - 1;
+            *t = '\0';
+            if (num == 0) {
+                *--t = '0';
+            } else {
+                while (num > 0) {
+                    *--t = '0' + (num % 10);
+                    num /= 10;
+                }
+            }
+            // 写入输出缓冲区
+            while (*t && p < end) {
+                *p++ = *t++;
+                total++;
+            }
+            // 计算剩余
+            while (*t++) total++; 
+            break;
+        }
+        case 'x': {
+            unsigned int num = va_arg(ap, unsigned int);
+            char tmp[9];
+            char *t = tmp + sizeof(tmp) - 1;
+            *t = '\0';
+            if (num == 0) {
+                *--t = '0';
+            } else {
+                while (num > 0) {
+                    int digit = num & 0xF;
+                    *--t = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+                    num >>= 4;
+                }
+            }
+            while (*t && p < end) {
+                *p++ = *t++;
+                total++;
+            }
+            while (*t++) total++;
+            break;
+        }
+        default:
+            // 不支持的格式，直接输出
+            if (p < end) *p++ = *fmt;
+            total++;
+            break;
+        }
+        fmt++;
+    }
+
+    while (*fmt) {
+        if (*fmt != '%') {
+            total++;
+            fmt++;
+            continue;
+        }
+        fmt++; // 跳过 %
+        if (*fmt == '\0') break;
+        switch (*fmt) {
+        case '%': case 'c':
+            total++; break;
+        case 's': {
+            const char *s = va_arg(ap, const char *);
+            if (!s) s = "(null)";
+            while (*s++) total++;
+            break;
+        }
+        case 'd': {
+            int num = va_arg(ap, int);
+            if (num < 0) { total++; num = -num; }
+            if (num == 0) total++;
+            else while (num > 0) { total++; num /= 10; }
+            break;
+        }
+        case 'x': {
+            unsigned int num = va_arg(ap, unsigned int);
+            if (num == 0) total++;
+            else while (num > 0) { total++; num >>= 4; }
+            break;
+        }
+        default: total++; break;
+        }
+        fmt++;
+    }
+
+    *p = '\0';
+    return total;
 }
 #endif
