@@ -71,6 +71,10 @@ void sim_clock(){
   step_and_dump();
   top->clock = 0;
   step_and_dump();
+  
+  #ifdef NV_CONFIG
+  nvboard_update();
+  #endif
 }
 
 void step_and_dump(){
@@ -79,10 +83,6 @@ void step_and_dump(){
 
   #ifdef FST_CONFIG
   tfp->dump(contextp->time());
-  #endif
-
-  #ifdef NV_CONFIG
-  nvboard_update();
   #endif
 }
 

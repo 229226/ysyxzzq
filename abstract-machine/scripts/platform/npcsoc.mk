@@ -7,6 +7,7 @@ AM_SRCS := riscv/ysyxsoc/start.S\
 		   riscv/ysyxsoc/uart.c\
 		   riscv/ysyxsoc/spi.c\
 		   riscv/ysyxsoc/input.c\
+		   riscv/ysyxsoc/gpu.c\
 		   riscv/ysyxsoc/bootloader.c\
            platform/dummy/vme.c \
            platform/dummy/mpe.c
