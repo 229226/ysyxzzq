@@ -38,8 +38,8 @@ NXDC_FILES = constr/ysyxSoC.nxdc
 
 # constraint file
 SRC_AUTO_BIND = $(abspath $(BUILD_PATH)/auto_bind.cpp)
-$(SRC_AUTO_BIND): $(NXDC_FILES)
-	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+$(SRC_AUTO_BIND): $(NXDC_FILES) $(BUILD_PATH)
+	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $(NXDC_FILES) $@
 
 CSRC += $(SRC_AUTO_BIND)
 
@@ -67,6 +67,9 @@ ARGS ?=
 IMG ?=
 
 all: $(BIN)
+
+$(BUILD_PATH):
+	@mkdir -p $(BUILD_PATH)
 
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)

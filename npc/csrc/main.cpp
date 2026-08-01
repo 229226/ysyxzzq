@@ -5,8 +5,7 @@
 #include "trace.hpp"
 
 int main(int argc, char *argv[]) {
-  //SoC
-  Verilated::commandArgs(argc, argv);
+  verilator_init(argc,argv);
 
   moniter_init(argc,argv);
 

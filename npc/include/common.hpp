@@ -16,6 +16,6 @@
 //#define ITRACE_CONFIG
 //#define MTRACE_CONFIG
 //#define FST_CONFIG
-#define NV_CONFIG
+//#define NV_CONFIG
 
 #endif

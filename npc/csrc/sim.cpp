@@ -4,7 +4,7 @@
 #include "trace.hpp"
 #include <nvboard.h>
 
-static TOP_NAME *top = new TOP_NAME;
+static TOP_NAME *top = NULL;
 static VerilatedContext* contextp = NULL;
 #ifdef FST_CONFIG
   static VerilatedFstC* tfp = NULL;
@@ -28,21 +28,27 @@ extern "C" void ins_state(int state){
 
 void nvboard_bind_all_pins(TOP_NAME* top);
 
-void sim_init(){
-  #ifdef NV_CONFIG
-  nvboard_bind_all_pins(top);
-  nvboard_init();
-  #endif
+void verilator_init(int argc, char *argv[]){
+  contextp = new VerilatedContext;
+  Verilated::commandArgs(argc, argv);
+
+  top = new TOP_NAME;
 
   Verilated::traceEverOn(true);
-  contextp = new VerilatedContext;
-
+  
   #ifdef FST_CONFIG
   tfp = new VerilatedFstC;
   top->trace(tfp,99);
   tfp->open("./build/waveform.fst");
   #endif
 
+  #ifdef NV_CONFIG
+  nvboard_bind_all_pins(top);
+  nvboard_init();
+  #endif
+}
+
+void sim_init(){
   top->reset = 1;
   sim_clock();
   sim_clock();

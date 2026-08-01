@@ -51,8 +51,11 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   //1 wait SRAM and ready
   //2 wait WBU ready
   reg [1:0]LSU_state,nLSU_state;
+  
+  //处理LSU不工作时候的信号
   wire LSU_work;
   assign LSU_work = LSU_ren | LSU_wen;
+
   always @(posedge clk) begin
       if(rst) LSU_state <= 0;
       else LSU_state <= nLSU_state;
@@ -60,13 +63,12 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
   always @(*) begin
     case (LSU_state)
       0:if(EXU_valid)
-            if(LSU_work == 0) nLSU_state = 2;
-            else nLSU_state = 1;
-          else  nLSU_state = 0;
-      1:if(R_fin || W_fin)
-            if(WBU_ready) nLSU_state = 0;
-            else nLSU_state = 2;
+          if(LSU_work == 0) nLSU_state = 2;
           else nLSU_state = 1;
+        else  nLSU_state = 0;
+      1:if(R_fin || W_fin)
+          nLSU_state = 2;
+        else nLSU_state = 1;
       2:if(WBU_ready) nLSU_state = 0;
         else nLSU_state = 2;
       default:nLSU_state = 0;
@@ -79,7 +81,7 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
             if(EXU_valid) LSU_valid = 1;
             else LSU_valid = 0;
             if(WBU_ready) LSU_ready = 1;
-            else LSU_ready = 0;
+          else LSU_ready = 0;
           end 
           else begin
             LSU_valid = 0;
@@ -87,15 +89,8 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
           end
       end
       1:begin 
-          if(R_fin || W_fin) begin
-            LSU_valid = 1;
-            if(WBU_ready) LSU_ready = 1;
-            else LSU_ready = 0;
-          end 
-          else begin
-            LSU_valid = 0;
-            LSU_ready = 0;
-          end 
+          LSU_valid = 0;
+          LSU_ready = 0;
       end 
       2:begin
           LSU_valid = 1;
@@ -197,28 +192,97 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
       else nAR_state = 1;
       endcase
   end
-  always @(*) begin
+  always @(posedge clk) begin
+    if(rst) begin
+      io_master_awvalid <= 0;
+      io_master_awaddr  <= 0;
+      io_master_awsize  <= 0;
+
+      io_master_wvalid  <= 0;
+      io_master_wdata   <= 0;
+      io_master_wstrb   <= 0;
+
+      io_master_bready  <= 0;
+      bresp             <= 0;
+
+      io_master_arvalid <= 0;
+      io_master_araddr  <= 0;
+      io_master_arsize  <= 0;
+
+      io_master_rready  <= 0;
+      AXI4_rdata        <= 0;
+      rresp             <= 0;
+    end
+    else begin
       case (AW_state)
-      1'b0:io_master_awvalid = 0;
-      1'b1:io_master_awvalid = 1;
+      1'b0:begin
+        if(AW_en) begin
+          io_master_awvalid <= 1;
+          io_master_awaddr  <= waddr;
+          io_master_awsize  <= awsize;
+        end
+      end
+      1'b1:begin
+        if(io_master_awready) begin
+          io_master_awvalid <= 0;
+          io_master_awaddr  <= 0;
+          io_master_awsize  <= 0;
+        end
+      end
       endcase
       case (W_state)
-      1'b0:io_master_wvalid = 0;
-      1'b1:io_master_wvalid = 1;
+      1'b0:begin
+        if(W_en) begin
+          io_master_wvalid  <= 1;
+          io_master_wdata   <= AXI4_wdata;
+          io_master_wstrb   <= AXI4_strb;
+        end
+      end
+      1'b1:begin
+        if(io_master_wready) begin
+          io_master_wvalid  <= 0;
+          io_master_wdata   <= 0;
+          io_master_wstrb   <= 0;
+        end
+      end
       endcase
-      if(W_res)io_master_bready = 1;
-      else io_master_bready = 0;
+      if(W_res && io_master_bvalid) begin
+        io_master_bready  <= 1;
+        bresp             <= io_master_bresp;
+      end
+      else begin
+        io_master_bready  <= 1;
+      end 
       case (AR_state)
-      1'b0:io_master_arvalid = 0;
-      1'b1:io_master_arvalid = 1;
+      1'b0:begin
+        if(R_en) begin
+          io_master_arvalid <= 1;
+          io_master_araddr  <= raddr;
+          io_master_arsize  <= arsize;
+        end
+      end
+      1'b1:begin
+        if(io_master_arready) begin
+          io_master_arvalid <= 0;
+          io_master_araddr  <= 0;
+          io_master_arsize  <= 0;     
+        end
+      end
       endcase
-      if(R_res)io_master_rready = 1;
-      else io_master_rready = 0;
+      if(R_res && io_master_rvalid)begin
+        io_master_rready  <= 1;
+        AXI4_rdata        <= io_master_rdata;
+        rresp             <= io_master_rresp;
+      end
+      else begin
+        io_master_rready  <= 1;
+      end
+    end
   end
 //AXI4接口信号
   reg [DATA_WID-1:0]AXI4_wdata;
   reg [3:0]AXI4_strb;
-  wire [DATA_WID-1:0]AXI4_rdata;
+  reg [DATA_WID-1:0]AXI4_rdata;
   always@(*) begin
     AXI4_wdata = 0;
     AXI4_strb = 0;
@@ -349,34 +413,20 @@ module ysyx_25080209_LSU#(ADDR_WID = 32,DATA_WID = 32)(
     default:arsize = 3'b000;
     endcase
   end
-  assign io_master_awaddr = waddr;
-  assign io_master_awsize = awsize;
-  assign io_master_awburst = 2'b01;
-  assign io_master_wlast = 1;
+//暂时不用信号处理
+  always @(posedge clk) begin
+    io_master_awburst <= 2'b01;
+    io_master_wlast   <= 1;
 
-  assign io_master_wdata = AXI4_wdata;
-  assign io_master_wstrb = AXI4_strb;
+    io_master_arburst <= 2'b01;
 
-  assign io_master_araddr = raddr;
-  assign io_master_arsize = arsize;
-  assign io_master_arburst = 2'b01;
-
-  assign AXI4_rdata = io_master_rdata;
-
-  assign io_master_awid = 0;
-  assign io_master_awlen = 0;
-  assign io_master_arid = 0;
-  assign io_master_arlen = 0;
+    io_master_awid    <= 0;
+    io_master_awlen   <= 0;
+    io_master_arid    <= 0;
+    io_master_arlen   <= 0;
+  end
 //AXI4读写反馈处理
   reg [1:0]bresp,rresp;
-  always @(posedge clk) begin
-    if(rst)begin
-      bresp <= 0;
-      rresp <= 0;
-    end
-    else if(io_master_bvalid) bresp <= io_master_bresp;
-    else if(io_master_rvalid) rresp <= io_master_rresp;
-  end
   always @(*) begin
     if((bresp!=0)||(rresp!=0)) LSU_npc = 0;
     else LSU_npc = EXU_npc;

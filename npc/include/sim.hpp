@@ -13,6 +13,8 @@
 
 #define TOP_NAME VysyxSoCFull
 
+void verilator_init(int argc, char *argv[]);
+
 void sim_init();
 void sim_exit();
 void sim_clock();
