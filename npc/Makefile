@@ -1,7 +1,18 @@
 TOP_NAME = ysyxSoCFull
 
 VERILATOR = verilator
+# 并行编译，使用所有 CPU 核心；自动 lint 关闭；拆分输出文件
+NPROC ?= $(shell nproc 2>/dev/null || echo 1)
 VERILATOR_FLAGS += -MMD --build -cc --trace-fst -O3 --autoflush
+VERILATOR_FLAGS += -j $(NPROC)
+#VERILATOR_FLAGS += --no-lint
+VERILATOR_FLAGS += --output-split 20000
+
+# 检测并使用 ccache
+CCACHE := $(shell which ccache 2>/dev/null)
+ifneq ($(CCACHE),)
+    CXX := $(CCACHE) $(CXX)
+endif
 
 GDB = gdb
 VALGRIND = valgrind
@@ -38,7 +49,7 @@ NXDC_FILES = constr/ysyxSoC.nxdc
 
 # constraint file
 SRC_AUTO_BIND = $(abspath $(BUILD_PATH)/auto_bind.cpp)
-$(SRC_AUTO_BIND): $(NXDC_FILES) $(BUILD_PATH)
+$(SRC_AUTO_BIND): $(NXDC_FILES) | $(BUILD_PATH)
 	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $(NXDC_FILES) $@
 
 CSRC += $(SRC_AUTO_BIND)
@@ -74,8 +85,7 @@ $(BUILD_PATH):
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
 
-$(BIN):$(VSRC) $(CSRC) $(OBJ_DIR) $(NVBOARD_ARCHIVE)
-	@rm -rf $(OBJ_DIR)
+$(BIN): $(VSRC) $(CSRC) $(NVBOARD_ARCHIVE) | $(OBJ_DIR)
 	@$(VERILATOR) $(VERILATOR_FLAGS)\
 		--top-module $(TOP_NAME)\
 		$(VSRC) $(CSRC) $(NVBOARD_ARCHIVE)\
@@ -106,5 +116,5 @@ sim: $(BIN)
 clean: 
 	rm -rf $(BUILD_PATH)
 
-.PHONY: all sim run gdb valgrind
+.PHONY: all sim run gdb valgrind clean
 include ../Makefile
