@@ -31,6 +31,7 @@ CSRC_PATH = $(NPC_PATH)/csrc
 CINC_PATH = $(NPC_PATH)/include
 VSRC = $(shell find $(VSRC_PATH) -name "*.v")
 CSRC = $(shell find $(CSRC_PATH) -name "*.cpp")
+HEADERS = $(shell find $(CINC_PATH) -name "*.hpp")
 
 #SoC
 SOC_PATH = $(abspath $(NPC_HOME)/../ysyxSoC)
@@ -82,10 +83,7 @@ all: $(BIN)
 $(BUILD_PATH):
 	@mkdir -p $(BUILD_PATH)
 
-$(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)
-
-$(BIN): $(VSRC) $(CSRC) $(NVBOARD_ARCHIVE) | $(OBJ_DIR)
+$(BIN): $(VSRC) $(CSRC) $(HEADERS) $(NVBOARD_ARCHIVE)
 	@$(VERILATOR) $(VERILATOR_FLAGS)\
 		--top-module $(TOP_NAME)\
 		$(VSRC) $(CSRC) $(NVBOARD_ARCHIVE)\

@@ -2,6 +2,7 @@
 #include "disasm.hpp"
 #include "moniter.hpp"
 #include <stdarg.h>
+#include "ptrace.hpp"
 
 #define ITRACE_BUFLEN 128
 #define ITRACE_RBLEN 20
@@ -14,10 +15,14 @@ static int rb_full = 0;
 FILE *trace_file;
 
 extern "C" void itrace(int ins){
+  if(npc_status.ins_state == INS_FINI){
+
+  ptrace.instr_inc();
+
   #ifdef ITRACE_CONFIG
-    if(npc_status.ins_state == INS_FINI) 
     itrace_print(ins);
-  #endif
+  #endif      
+  }
 }
 
 void trace_init(){

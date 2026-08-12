@@ -62,250 +62,292 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
     output                  io_slave_rlast,
     output [3:0]            io_slave_rid
 );
-//接口信号处理
     wire clk = clock;
     wire rst = reset;
+
+    // 关闭未使用的 slave 接口（实际由仲裁器提供）
     assign io_slave_awready = 0;
-    assign io_slave_wready = 0;
-    assign io_slave_bvalid = 0;
-    assign io_slave_bresp = 0;
-    assign io_slave_bid = 0;
+    assign io_slave_wready  = 0;
+    assign io_slave_bvalid  = 0;
+    assign io_slave_bresp   = 0;
+    assign io_slave_bid     = 0;
     assign io_slave_arready = 0;
-    assign io_slave_rvalid = 0;
-    assign io_slave_rresp = 0;
-    assign io_slave_rdata = 0;
-    assign io_slave_rlast = 0;
-    assign io_slave_rid = 0;
-//IFU
-    //IFUstate
-    wire IFU_valid;
-    wire [DATA_WID-1:0] ins;
-    wire [ADDR_WID-1:0] pc,snpc;
-    wire [ADDR_WID-1:0] IFU_npc;
-    assign IFU_npc = LSU_npc;
-ysyx_25080209_IFU IFU (
-    .clk(clk),.rst(rst),
-    .IFU_npc(IFU_npc),.pc(pc),.snpc(snpc),
-    .ins( ins),
+    assign io_slave_rvalid  = 0;
+    assign io_slave_rresp   = 0;
+    assign io_slave_rdata   = 0;
+    assign io_slave_rlast   = 0;
+    assign io_slave_rid     = 0;
 
-    .IDU_ready(IDU_ready),.IFU_valid(IFU_valid),
+    // ---- IFU 输出 ----
+    wire        IFU_valid;
+    wire [31:0] IFU_ins;
+    wire [31:0] IFU_pc, IFU_snpc;
 
-    .io_master_awready 	(io_master0_awready  ),
-    .io_master_awvalid 	(io_master0_awvalid  ),
-    .io_master_awaddr  	(io_master0_awaddr   ),
-    .io_master_awid    	(io_master0_awid     ),
-    .io_master_awlen   	(io_master0_awlen    ),
-    .io_master_awsize  	(io_master0_awsize   ),
-    .io_master_awburst 	(io_master0_awburst  ),
-    .io_master_wready  	(io_master0_wready   ),
-    .io_master_wvalid  	(io_master0_wvalid   ),
-    .io_master_wdata   	(io_master0_wdata    ),
-    .io_master_wstrb   	(io_master0_wstrb    ),
-    .io_master_wlast   	(io_master0_wlast    ),
-    .io_master_bready  	(io_master0_bready   ),
-    .io_master_bvalid  	(io_master0_bvalid   ),
-    .io_master_bresp   	(io_master0_bresp    ),
-    .io_master_bid     	(io_master0_bid      ),
-    .io_master_arready 	(io_master0_arready  ),
-    .io_master_arvalid 	(io_master0_arvalid  ),
-    .io_master_araddr  	(io_master0_araddr   ),
-    .io_master_arid    	(io_master0_arid     ),
-    .io_master_arlen   	(io_master0_arlen    ),
-    .io_master_arsize  	(io_master0_arsize   ),
-    .io_master_arburst 	(io_master0_arburst  ),
-    .io_master_rready  	(io_master0_rready   ),
-    .io_master_rvalid  	(io_master0_rvalid   ),
-    .io_master_rresp   	(io_master0_rresp    ),
-    .io_master_rdata   	(io_master0_rdata    ),
-    .io_master_rlast   	(io_master0_rlast    ),
-    .io_master_rid     	(io_master0_rid      )
-);
-//IDU
-    wire [DATA_WID-1:0]imm;
-    wire [3:0]alu_op;
-    wire rs2_imm,IDU_reg_wen,pc_rs1;
-    wire [1:0]pc_sw;
-    wire [2:0]wreg_sw;
-    //IDU_csr
-    wire IDU_csr_wen,IDU_csr_ren,csr_w_sw;
-    wire [DATA_WID-1:0] csr_zimm;
-    //IDU_ecall
-    wire ecall;
-    //IDU_mret
-    wire mret;
-    //IDUstate
-    wire IDU_ready,IDU_valid;
-ysyx_25080209_IDU #(32,4) IDU (
-    .clk(clk),.rst(rst),
-    .IDU_ins    (ins),
-    .imm    (imm),
-    .rs2_imm(rs2_imm),
-    .alu_op(alu_op),
-    .IDU_reg_wen(IDU_reg_wen),
-    .wreg_sw(wreg_sw),
-    .pc_rs1 (pc_rs1 ),
-    .pc_sw  (pc_sw  ),
-    .reg_raddr1 (reg_raddr1),.reg_raddr2 (reg_raddr2),.reg_waddr  (reg_waddr),
-    .mem_ren  (mem_ren),.mem_wen    (mem_wen),
-    .mem_wmask  (mem_wmask),.mem_rmask  (mem_rmask),
-    
-    .IDU_csr_wen    (IDU_csr_wen ),.IDU_csr_ren    (IDU_csr_ren),
-    .csr_w_sw   (csr_w_sw),.csr_zimm   (csr_zimm),
+    // ---- IDU 输出 ----
+    wire [31:0] IDU_imm;
+    wire [3:0]  IDU_ALU_opcode;
+    wire        IDU_ALU_op1;
+    wire        IDU_ALU_op2;
+    wire [1:0]  IDU_pc_sw;
+    wire [2:0]  IDU_wreg_sw;
+    wire        IDU_reg_wen;
+    wire        IDU_csr_wen, IDU_csr_ren;
+    wire        IDU_csr_w_sw;
+    wire [31:0] IDU_csr_zimm;
+    wire        IDU_ecall;
+    wire        IDU_mret;
+    wire        IDU_ready, IDU_valid;
+    wire [3:0]  IDU_reg_raddr1, IDU_reg_raddr2, IDU_reg_waddr;
+    wire        IDU_mem_ren, IDU_mem_wen;
+    wire [3:0]  IDU_mem_wmask;
+    wire [2:0]  IDU_mem_rmask;
 
-    .ecall      (ecall),
+    // ---- EXU 输出 ----
+    wire [31:0] EXU_out;
+    wire [31:0] EXU_pc_next;
+    wire        EXU_reg_wen, EXU_csr_wen, EXU_csr_ren;
+    wire        EXU_ready, EXU_valid;
 
-    .mret       (mret),
+    // ---- LSU 输出 ----
+    wire [31:0] LSU_npc;
+    wire [31:0] LSU_rdata;
+    wire        LSU_reg_wen, LSU_csr_wen, LSU_csr_ren;
+    wire        LSU_ready, LSU_valid;
 
-    .EXU_ready(EXU_ready),.IFU_valid(IFU_valid),.IDU_ready(IDU_ready),.IDU_valid(IDU_valid)
-);
-//EXU
-    wire [DATA_WID-1:0] exu_out,EXU_npc;
-    //中转信号
-    wire EXU_reg_wen,EXU_csr_wen,EXU_csr_ren;
-    //EXUstate
-    wire EXU_ready,EXU_valid;
-ysyx_25080209_EXU EXU(
-    .clk(clk),.rst(rst),
-    .rs1     	(reg_rdata1 ),
-    .rs2     	(reg_rdata2 ),
-    .imm     	(imm        ),
-    .pc         (pc         ),
-    .alu_op 	(alu_op     ),
-    .rs2_imm 	(rs2_imm    ),
-    .pc_rs1     (pc_rs1     ),
-    .exu_out    (exu_out    ),
+    // ---- WBU 输出 ----
+    wire [31:0] WBU_reg_wdata;
+    wire [31:0] WBU_csr_wdata;
+    wire        WBU_reg_wen, WBU_csr_wen, WBU_csr_ren;
+    wire        WBU_ready;
 
-    .snpc       (snpc),
-    .pc_sw      (pc_sw),
-    .ecall      (ecall),
-    .mret       (mret),
-    .mtvec      (mtvec_out),
-    .mepc       (mepc_out),
-    .pc_next    (EXU_npc),
+    // ---- CSR 输出 ----
+    wire [31:0] CSR_rdata;
+    wire [31:0] CSR_mtvec, CSR_mepc;
 
-    .IDU_reg_wen(IDU_reg_wen),.IDU_csr_wen(IDU_csr_wen),.IDU_csr_ren(IDU_csr_ren),
-    .EXU_reg_wen(EXU_reg_wen),.EXU_csr_wen(EXU_csr_wen),.EXU_csr_ren(EXU_csr_ren),
+    // ---- 寄存器文件输出 ----
+    wire [31:0] RF_rdata1, RF_rdata2;
 
-    .IDU_valid(IDU_valid),.LSU_ready(LSU_ready),.EXU_ready(EXU_ready),.EXU_valid(EXU_valid)
-);
-//LSU
-    wire mem_ren,mem_wen;
-    wire [3:0]mem_wmask;
-    wire [DATA_WID-1:0]mem_rdata;
-    wire [2:0]mem_rmask;
-    wire [ADDR_WID-1:0]LSU_npc;
-    //中转信号
-    wire LSU_reg_wen,LSU_csr_wen,LSU_csr_ren;
-    //LSUstate
-    wire LSU_ready,LSU_valid;
-ysyx_25080209_LSU LSU(
-    .clk(clk),.rst(rst),
-    .LSU_ren(mem_ren),.LSU_wen(mem_wen),
-    .wmask(mem_wmask),.rmask (mem_rmask),
-    .raddr(exu_out),.rdata_out(mem_rdata),
-    .waddr(exu_out),.wdata(reg_rdata2),
+    // ---- 内部中间地址 ----
+    wire [11:0] CSR_raddr, CSR_waddr;
 
-    .EXU_reg_wen(EXU_reg_wen),.EXU_csr_wen(EXU_csr_wen),
-    .EXU_csr_ren(EXU_csr_ren),
-    .LSU_reg_wen(LSU_reg_wen),.LSU_csr_wen(LSU_csr_wen),
-    .LSU_csr_ren(LSU_csr_ren),
+    // ==================== 子模块实例化 ====================
 
-    .EXU_npc(EXU_npc),.LSU_npc(LSU_npc),
+    // ---------- IFU ----------
+    ysyx_25080209_IFU IFU (
+        .clk           (clk),
+        .rst           (rst),
+        .EXU_npc       (LSU_npc),          
+        .IFU_pc        (IFU_pc),
+        .IFU_snpc      (IFU_snpc),
+        .IFU_ins       (IFU_ins),
+        .IDU_ready     (IDU_ready),
+        .IFU_valid     (IFU_valid),
+        // AXI4 master 0
+        .io_master_awready (io_master0_awready),
+        .io_master_awvalid (io_master0_awvalid),
+        .io_master_awaddr  (io_master0_awaddr),
+        .io_master_awid    (io_master0_awid),
+        .io_master_awlen   (io_master0_awlen),
+        .io_master_awsize  (io_master0_awsize),
+        .io_master_awburst (io_master0_awburst),
+        .io_master_wready  (io_master0_wready),
+        .io_master_wvalid  (io_master0_wvalid),
+        .io_master_wdata   (io_master0_wdata),
+        .io_master_wstrb   (io_master0_wstrb),
+        .io_master_wlast   (io_master0_wlast),
+        .io_master_bready  (io_master0_bready),
+        .io_master_bvalid  (io_master0_bvalid),
+        .io_master_bresp   (io_master0_bresp),
+        .io_master_bid     (io_master0_bid),
+        .io_master_arready (io_master0_arready),
+        .io_master_arvalid (io_master0_arvalid),
+        .io_master_araddr  (io_master0_araddr),
+        .io_master_arid    (io_master0_arid),
+        .io_master_arlen   (io_master0_arlen),
+        .io_master_arsize  (io_master0_arsize),
+        .io_master_arburst (io_master0_arburst),
+        .io_master_rready  (io_master0_rready),
+        .io_master_rvalid  (io_master0_rvalid),
+        .io_master_rresp   (io_master0_rresp),
+        .io_master_rdata   (io_master0_rdata),
+        .io_master_rlast   (io_master0_rlast),
+        .io_master_rid     (io_master0_rid)
+    );
 
-    .EXU_valid(EXU_valid),.WBU_ready(WBU_ready),
-    .LSU_ready(LSU_ready),.LSU_valid(LSU_valid),
+    // ---------- IDU ----------
+    ysyx_25080209_IDU #(32,4) IDU (
+        .clk            (clk),
+        .rst            (rst),
+        .IFU_valid      (IFU_valid),
+        .IFU_instr      (IFU_ins),
+        .IDU_imm        (IDU_imm),
+        .IDU_ALU_op1    (IDU_ALU_op1),
+        .IDU_ALU_op2    (IDU_ALU_op2),
+        .IDU_ALU_opcode (IDU_ALU_opcode),
+        .IDU_pc_sw      (IDU_pc_sw),
+        .IDU_reg_wen    (IDU_reg_wen),
+        .IDU_wreg_sw    (IDU_wreg_sw),
+        .IDU_reg_raddr1 (IDU_reg_raddr1),
+        .IDU_reg_raddr2 (IDU_reg_raddr2),
+        .IDU_reg_waddr  (IDU_reg_waddr),
+        .IDU_mem_ren    (IDU_mem_ren),
+        .IDU_mem_wen    (IDU_mem_wen),
+        .IDU_mem_wmask  (IDU_mem_wmask),
+        .IDU_mem_rmask  (IDU_mem_rmask),
+        .IDU_csr_wen    (IDU_csr_wen),
+        .IDU_csr_ren    (IDU_csr_ren),
+        .IDU_csr_w_sw   (IDU_csr_w_sw),
+        .IDU_csr_zimm   (IDU_csr_zimm),
+        .IDU_ecall      (IDU_ecall),
+        .IDU_mret       (IDU_mret),
+        .EXU_ready      (EXU_ready),
+        .IDU_ready      (IDU_ready),
+        .IDU_valid      (IDU_valid)
+    );
 
-    .io_master_awready 	(io_master1_awready  ),
-    .io_master_awvalid 	(io_master1_awvalid  ),
-    .io_master_awaddr  	(io_master1_awaddr   ),
-    .io_master_awid    	(io_master1_awid     ),
-    .io_master_awlen   	(io_master1_awlen    ),
-    .io_master_awsize  	(io_master1_awsize   ),
-    .io_master_awburst 	(io_master1_awburst  ),
-    .io_master_wready  	(io_master1_wready   ),
-    .io_master_wvalid  	(io_master1_wvalid   ),
-    .io_master_wdata   	(io_master1_wdata    ),
-    .io_master_wstrb   	(io_master1_wstrb    ),
-    .io_master_wlast   	(io_master1_wlast    ),
-    .io_master_bready  	(io_master1_bready   ),
-    .io_master_bvalid  	(io_master1_bvalid   ),
-    .io_master_bresp   	(io_master1_bresp    ),
-    .io_master_bid     	(io_master1_bid      ),
-    .io_master_arready 	(io_master1_arready  ),
-    .io_master_arvalid 	(io_master1_arvalid  ),
-    .io_master_araddr  	(io_master1_araddr   ),
-    .io_master_arid    	(io_master1_arid     ),
-    .io_master_arlen   	(io_master1_arlen    ),
-    .io_master_arsize  	(io_master1_arsize   ),
-    .io_master_arburst 	(io_master1_arburst  ),
-    .io_master_rready  	(io_master1_rready   ),
-    .io_master_rvalid  	(io_master1_rvalid   ),
-    .io_master_rresp   	(io_master1_rresp    ),
-    .io_master_rdata   	(io_master1_rdata    ),
-    .io_master_rlast   	(io_master1_rlast    ),
-    .io_master_rid     	(io_master1_rid      )
-);
-//WBU
-    wire WBU_reg_wen,WBU_csr_wen,WBU_csr_ren;
-    //WBUstate
-    wire WBU_ready;
-ysyx_25080209_WBU WBU(
-    .clk(clk),.rst(rst),
-    .wreg_sw    (wreg_sw),
-    .exu_out    (exu_out),
-    .imm        (imm    ),
-    .mem_wreg  (mem_rdata),
-    .csr_wreg   (csr_rdata),
+    // ---------- EXU ----------
+    ysyx_25080209_EXU EXU (
+        .clk            (clk),
+        .rst            (rst),
+        .IDU_rs1        (RF_rdata1),
+        .IDU_rs2        (RF_rdata2),
+        .IDU_imm        (IDU_imm),
+        .IDU_ALU_op1    (IDU_ALU_op1),
+        .IDU_ALU_op2    (IDU_ALU_op2),
+        .IDU_ALU_opcode (IDU_ALU_opcode),
+        .IDU_pc_sw      (IDU_pc_sw),
+        .IDU_ecall      (IDU_ecall),
+        .IDU_mret       (IDU_mret),
+        .IDU_reg_wen    (IDU_reg_wen),
+        .IDU_csr_wen    (IDU_csr_wen),
+        .IDU_csr_ren    (IDU_csr_ren),
+        .IFU_pc         (IFU_pc),
+        .IFU_snpc       (IFU_snpc),
+        .CSR_mtvec      (CSR_mtvec),
+        .CSR_mepc       (CSR_mepc),
+        .LSU_ready      (LSU_ready),
+        .IDU_valid      (IDU_valid),
+        .EXU_out        (EXU_out),
+        .EXU_pc_next    (EXU_pc_next),
+        .EXU_reg_wen    (EXU_reg_wen),
+        .EXU_csr_wen    (EXU_csr_wen),
+        .EXU_csr_ren    (EXU_csr_ren),
+        .EXU_ready      (EXU_ready),
+        .EXU_valid      (EXU_valid)
+    );
 
-    .csr_w_sw   (csr_w_sw),
-    .csr_wrs1   (reg_rdata1),
-    .csr_wzimm  (csr_zimm),
+    // ---------- LSU ----------
+    ysyx_25080209_LSU LSU (
+        .clk            (clk),
+        .rst            (rst),
+        .IDU_mem_ren    (IDU_mem_ren),
+        .IDU_mem_wen    (IDU_mem_wen),
+        .IDU_mem_wmask  (IDU_mem_wmask),
+        .IDU_mem_rmask  (IDU_mem_rmask),
+        .EXU_raddr      (EXU_out),
+        .EXU_waddr      (EXU_out),
+        .EXU_wdata      (RF_rdata2),
+        .EXU_npc        (EXU_pc_next),
+        .EXU_reg_wen    (EXU_reg_wen),
+        .EXU_csr_wen    (EXU_csr_wen),
+        .EXU_csr_ren    (EXU_csr_ren),
+        .EXU_valid      (EXU_valid),
+        .WBU_ready      (WBU_ready),
+        .LSU_npc        (LSU_npc),
+        .LSU_rdata      (LSU_rdata),
+        .LSU_reg_wen    (LSU_reg_wen),
+        .LSU_csr_wen    (LSU_csr_wen),
+        .LSU_csr_ren    (LSU_csr_ren),
+        .LSU_ready      (LSU_ready),
+        .LSU_valid      (LSU_valid),
+        // AXI4 master 1
+        .io_master_awready (io_master1_awready),
+        .io_master_awvalid (io_master1_awvalid),
+        .io_master_awaddr  (io_master1_awaddr),
+        .io_master_awid    (io_master1_awid),
+        .io_master_awlen   (io_master1_awlen),
+        .io_master_awsize  (io_master1_awsize),
+        .io_master_awburst (io_master1_awburst),
+        .io_master_wready  (io_master1_wready),
+        .io_master_wvalid  (io_master1_wvalid),
+        .io_master_wdata   (io_master1_wdata),
+        .io_master_wstrb   (io_master1_wstrb),
+        .io_master_wlast   (io_master1_wlast),
+        .io_master_bready  (io_master1_bready),
+        .io_master_bvalid  (io_master1_bvalid),
+        .io_master_bresp   (io_master1_bresp),
+        .io_master_bid     (io_master1_bid),
+        .io_master_arready (io_master1_arready),
+        .io_master_arvalid (io_master1_arvalid),
+        .io_master_araddr  (io_master1_araddr),
+        .io_master_arid    (io_master1_arid),
+        .io_master_arlen   (io_master1_arlen),
+        .io_master_arsize  (io_master1_arsize),
+        .io_master_arburst (io_master1_arburst),
+        .io_master_rready  (io_master1_rready),
+        .io_master_rvalid  (io_master1_rvalid),
+        .io_master_rresp   (io_master1_rresp),
+        .io_master_rdata   (io_master1_rdata),
+        .io_master_rlast   (io_master1_rlast),
+        .io_master_rid     (io_master1_rid)
+    );
 
-    .snpc 	    (snpc  ),
-    .reg_wdata  (reg_wdata),
-    .csr_wdata  (csr_wdata),
+    // ---------- WBU ----------
+    ysyx_25080209_WBU WBU (
+        .clk            (clk),
+        .rst            (rst),
+        .IDU_wreg_sw    (IDU_wreg_sw),
+        .IDU_csr_w_sw   (IDU_csr_w_sw),
+        .IDU_imm        (IDU_imm),
+        .EXU_out        (EXU_out),
+        .IFU_snpc       (IFU_snpc),
+        .LSU_rdata      (LSU_rdata),
+        .LSU_reg_wen    (LSU_reg_wen),
+        .LSU_csr_wen    (LSU_csr_wen),
+        .LSU_csr_ren    (LSU_csr_ren),
+        .CSR_wreg       (CSR_rdata),
+        .CSR_wrs1       (RF_rdata1),
+        .CSR_wzimm      (IDU_csr_zimm),
+        .LSU_valid      (LSU_valid),
+        .WBU_reg_wdata  (WBU_reg_wdata),
+        .WBU_csr_wdata  (WBU_csr_wdata),
+        .WBU_reg_wen    (WBU_reg_wen),
+        .WBU_csr_wen    (WBU_csr_wen),
+        .WBU_csr_ren    (WBU_csr_ren),
+        .WBU_ready      (WBU_ready)
+    );
 
-    .LSU_reg_wen(LSU_reg_wen),.LSU_csr_wen(LSU_csr_wen),.LSU_csr_ren(LSU_csr_ren),
-    .WBU_reg_wen(WBU_reg_wen),.WBU_csr_wen(WBU_csr_wen),.WBU_csr_ren(WBU_csr_ren),
+    // ---------- Register File ----------
+    RegisterFile #(4,32) Regs (
+        .clk    (clk),
+        .raddr1 (IDU_reg_raddr1),
+        .raddr2 (IDU_reg_raddr2),
+        .rdata1 (RF_rdata1),
+        .rdata2 (RF_rdata2),
+        .waddr  (IDU_reg_waddr),
+        .wdata  (WBU_reg_wdata),
+        .wen    (WBU_reg_wen)
+    );
 
-    .LSU_valid(LSU_valid),.WBU_ready(WBU_ready)
-);
-//regs
-    wire [3:0]reg_raddr1,reg_raddr2,reg_waddr;
-    wire [DATA_WID-1:0] reg_wdata,reg_rdata1,reg_rdata2;
-RegisterFile #(4,32) Regs (
-    .clk    (clk),
-    .raddr1 (reg_raddr1),
-    .raddr2 (reg_raddr2),
-    .rdata1 (reg_rdata1),
-    .rdata2 (reg_rdata2),
-    .waddr  (reg_waddr),
-    .wdata  (reg_wdata),
-    .wen    (WBU_reg_wen)
-);
-//csr
-    wire [DATA_WID-1:0] csr_rdata,csr_wdata;
-    wire [11:0]csr_raddr,csr_waddr;
-    assign csr_raddr = imm[11:0];
-    assign csr_waddr = imm[11:0];
-    wire [DATA_WID-1:0]mtvec_out,mepc_out;
-ysyx_25080209_CSR u_ysyx_25080209_CSR(
-    .clk   	(clk    ),
-    .rst    (rst    ),
+    // ---------- CSR ----------
+    assign CSR_raddr = IDU_imm[11:0];
+    assign CSR_waddr = IDU_imm[11:0];
 
-    .wen   	(WBU_csr_wen    ),
-    .ren   	(WBU_csr_ren    ),
-    .wdata 	(csr_wdata  ),
-    .waddr 	(csr_waddr  ),
-    .raddr 	(csr_raddr  ),
-    .rdata 	(csr_rdata  ),
+    ysyx_25080209_CSR u_ysyx_25080209_CSR (
+        .clk           (clk),
+        .rst           (rst),
+        .IDU_csr_wen   (WBU_csr_wen),
+        .IDU_csr_ren   (WBU_csr_ren),
+        .IDU_csr_waddr (CSR_waddr),
+        .IDU_csr_raddr (CSR_raddr),
+        .WBU_csr_wdata (WBU_csr_wdata),
+        .IFU_pc        (IFU_pc),
+        .IDU_ecall     (IDU_ecall),
+        .CSR_rdata     (CSR_rdata),
+        .CSR_mtvec     (CSR_mtvec),
+        .CSR_mepc      (CSR_mepc)
+    );
 
-    .pc     (pc),
-    .ecall  (ecall),
-    
-    .mtvec_out  (mtvec_out),
-    .mepc_out   (mepc_out)
-);
 //AXI4_Arbiter_Xbar
     //AXI4接口 master0
     wire                  io_master0_awready;

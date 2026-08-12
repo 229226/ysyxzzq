@@ -1,76 +1,89 @@
-module ysyx_25080209_WBU#(DATA_WID = 32)(
-    input clk,rst,
-    input [2:0]wreg_sw,
+module ysyx_25080209_WBU #(DATA_WID = 32)(
+    input clk, rst,
 
-    input csr_w_sw,
-    input [DATA_WID-1:0]imm,exu_out,snpc,mem_wreg,csr_wreg,
-    input [DATA_WID-1:0]csr_wrs1,csr_wzimm,
-    output [DATA_WID-1:0]reg_wdata,
-    output [DATA_WID-1:0]csr_wdata,
+    // 来自 IDU 的控制信号
+    input [2:0]         IDU_wreg_sw,
+    input               IDU_csr_w_sw,
+    input [DATA_WID-1:0] IDU_imm,
 
-    input LSU_reg_wen,LSU_csr_wen,LSU_csr_ren,
-    output reg WBU_reg_wen,WBU_csr_wen,WBU_csr_ren,
+    // 来自 EXU
+    input [DATA_WID-1:0] EXU_out,
 
-    //WBUstate
-    input LSU_valid,
+    // 来自 IFU
+    input [DATA_WID-1:0] IFU_snpc,
+
+    // 来自 LSU
+    input [DATA_WID-1:0] LSU_rdata,
+    input                LSU_reg_wen,
+    input                LSU_csr_wen,
+    input                LSU_csr_ren,
+
+    // 来自 CSR 模块
+    input [DATA_WID-1:0] CSR_wreg,
+    input [DATA_WID-1:0] CSR_wrs1,
+    input [DATA_WID-1:0] CSR_wzimm,
+
+    // 输出到寄存器文件和 CSR
+    output [DATA_WID-1:0] WBU_reg_wdata,
+    output [DATA_WID-1:0] WBU_csr_wdata,
+    output reg            WBU_reg_wen,
+    output reg            WBU_csr_wen,
+    output reg            WBU_csr_ren,
+
+    // 握手信号
+    input  LSU_valid,
     output reg WBU_ready
 );
-//WBUstate
-//0 idle
-//1 working
-reg WBU_state,nWBU_state;
-always @(posedge clk) begin
-    if(rst) WBU_state <= 0;
-    else WBU_state <= nWBU_state;
-end
-always @(*) begin
-  case (WBU_state)
-    0:begin
-        if(LSU_valid) nWBU_state = 1;
-        else nWBU_state = 0;
-    end 
-    1:begin
-        nWBU_state = 0;
+
+    // ========== WBU 状态机 ==========
+    // 0 idle, 1 working
+    reg WBU_state, nWBU_state;
+    always @(posedge clk) begin
+        if(rst) WBU_state <= 0;
+        else    WBU_state <= nWBU_state;
     end
-    default;
-  endcase
-end
-always @(*) begin
-  case (WBU_state)
-    0:begin
-        WBU_ready = 1;
+
+    always @(*) begin
+        case (WBU_state)
+            0: nWBU_state = LSU_valid ? 1 : 0;
+            1: nWBU_state = 0;
+            default: nWBU_state = 0;
+        endcase
     end
-    1:begin
-        WBU_ready = 1;
+
+    always @(*) begin
+        case (WBU_state)
+            0, 1: WBU_ready = 1;
+            default: WBU_ready = 1;
+        endcase
     end
-    default;
-  endcase
-end
-//reg
-always @(*) begin
-  if(nWBU_state == 1) WBU_reg_wen = LSU_reg_wen;
-  else WBU_reg_wen = 0;
-end
-MuxKeyWithDefault #(5,3,32) Mux_reg_wdata (reg_wdata,wreg_sw,32'b0,{
-   3'b000,exu_out,
-   3'b001,imm,
-   3'b010,snpc,
-   3'b011,mem_wreg,
-   3'b100,csr_wreg
-});
-//csr
-always @(*) begin
-  if(nWBU_state == 1) begin 
-    WBU_csr_wen = LSU_csr_wen;
-    WBU_csr_ren = LSU_csr_ren;
-  end
-  else begin
-    WBU_csr_wen = 0;
-    WBU_csr_ren = 0;
-  end
-end
-MuxKeyWithDefault #(2,1,32) Mux_csr_wdata (csr_wdata,csr_w_sw,32'b0,{
-    1'b0,csr_wrs1,
-    1'b1,csr_wzimm
-});
+
+    // ========== 寄存器写使能（在状态转换时锁存） ==========
+    always @(*) begin
+        if(nWBU_state == 1) begin
+            WBU_reg_wen = LSU_reg_wen;
+            WBU_csr_wen = LSU_csr_wen;
+            WBU_csr_ren = LSU_csr_ren;
+        end else begin
+            WBU_reg_wen = 0;
+            WBU_csr_wen = 0;
+            WBU_csr_ren = 0;
+        end
+    end
+
+    // ========== 寄存器写数据选择 ==========
+    MuxKeyWithDefault #(5, 3, 32) Mux_reg_wdata (WBU_reg_wdata, IDU_wreg_sw, 32'b0, {
+        3'b000, EXU_out,
+        3'b001, IDU_imm,
+        3'b010, IFU_snpc,
+        3'b011, LSU_rdata,
+        3'b100, CSR_wreg
+    });
+
+    // ========== CSR 写数据选择 ==========
+    MuxKeyWithDefault #(2, 1, 32) Mux_csr_wdata (WBU_csr_wdata, IDU_csr_w_sw, 32'b0, {
+        1'b0, CSR_wrs1,
+        1'b1, CSR_wzimm
+    });
+
 endmodule
