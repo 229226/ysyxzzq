@@ -17,8 +17,6 @@ FILE *trace_file;
 extern "C" void itrace(int ins){
   if(npc_status.ins_state == INS_FINI){
 
-  ptrace.instr_inc();
-
   #ifdef ITRACE_CONFIG
     itrace_print(ins);
   #endif      

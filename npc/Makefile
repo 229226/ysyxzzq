@@ -78,8 +78,6 @@ CXXFLAGS += $(LIBS)
 ARGS ?=
 IMG ?=
 
-all: $(BIN)
-
 $(BUILD_PATH):
 	@mkdir -p $(BUILD_PATH)
 
@@ -94,6 +92,10 @@ $(BIN): $(VSRC) $(CSRC) $(HEADERS) $(NVBOARD_ARCHIVE)
 		--exe -o $(abspath $(BIN))
 
 NPC_EXEC := $(BIN) $(ARGS) $(IMG)
+
+YOSYS_PROJ_DIR ?= $(abspath $(NPC_HOME)/yosys)
+
+all: $(BIN)
 
 run: $(BIN)
 	$(call git_commit, "run RTL")
@@ -111,8 +113,11 @@ sim: $(BIN)
 	$(NPC_EXEC)
 	$(GTKWAVE) $(WAVE_FILE)
 
+sta:
+	$(MAKE) -C $(YOSYS_PROJ_DIR) sta
+
 clean: 
 	rm -rf $(BUILD_PATH)
 
-.PHONY: all sim run gdb valgrind clean
+.PHONY: all run gdb valgrind sim clean
 include ../Makefile

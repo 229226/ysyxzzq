@@ -1,4 +1,4 @@
-STUID = ysyx_22040000
+STUID = ysyx_25080209
 STUNAME = 邹子祺
 
 # DO NOT modify the following code!!!

@@ -28,7 +28,7 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
     input                LSU_ready,
 
     // 输出到 LSU / 其他
-    output [DATA_WID-1:0] EXU_out,
+    output reg [DATA_WID-1:0] EXU_out,
     output [DATA_WID-1:0] EXU_pc_next,
 
     // 输出到 IDU
@@ -57,7 +57,11 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
 
     always @(*) begin
         case (EXU_state)
-            0, 1: begin
+            0: begin
+                EXU_valid = 0;
+                EXU_ready = 0;
+            end
+            1: begin
                 EXU_valid = IDU_valid;
                 EXU_ready = LSU_ready;
             end
@@ -82,7 +86,13 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
         .alu_out(alu_out)
     );
 
-    assign EXU_out = alu_out;
+    always @(posedge clk) begin
+        if(rst) begin
+            EXU_out <= 0;
+        end else begin
+            EXU_out <= alu_out;
+        end
+    end  
 
     // ========== PC 更新逻辑 ==========
     wire branch;
@@ -109,10 +119,14 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
     assign EXU_csr_wen = IDU_csr_wen;
     assign EXU_csr_ren = IDU_csr_ren;
 
+`ifndef YOSYS
+
     // ========== 性能计数器 ==========
     import "DPI-C" function void EXU_fini();
     always @(posedge clk) begin
-        EXU_fini();
+        if(EXU_valid && LSU_ready) EXU_fini();
     end
+
+`endif
 
 endmodule

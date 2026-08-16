@@ -202,6 +202,9 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         end
     end
 //读写DPI-C
+
+`ifndef YOSYS
+
     import "DPI-C" function int pmem_read(input int raddr);
     import "DPI-C" function void pmem_write(
     input int waddr, input int wdata, input byte wmask);
@@ -215,6 +218,8 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         end
         if(SRAM_wen) pmem_write(AWADDR,WDATA,{4'b0000,WSTRB});
     end
+
+`endif
 //SRAM读写
     // reg [DATA_WID-1:0] SRAM [2**ADDR_WID-1:0];
     // always @(posedge clk) begin

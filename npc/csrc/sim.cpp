@@ -80,6 +80,8 @@ void sim_clock(){
   #ifdef NV_CONFIG
   nvboard_update();
   #endif
+
+  ptrace.clock_inc();
 }
 
 void step_and_dump(){
@@ -104,8 +106,6 @@ int sim_exec_one(){
       if(npc_status.ins_state == INS_FINI)
       diff_step();
     #endif
-
-    ptrace.clock_inc();
 
     return 0;
 }
@@ -133,19 +133,52 @@ int sim_exec(int turns){
     }
   }
   
-  printf("ptrace:执行花费了%ld个时钟周期\n", ptrace.get_clock());
+  ptrace.set_frequency(592753000UL);
+
+  printf("\nptrace:执行花费了%ld个时钟周期\n", ptrace.get_clock());
   printf("ptrace:执行了%ld条指令\n", ptrace.get_instr());
   printf("ptrace:IPC为%.4f\n", ptrace.get_ipc());
-  printf("ptrace:IFU取指次数:%ld\n", ptrace.get_IFU_fetch());
+  printf("ptrace:IPS (指令/秒) : %.2f\n", ptrace.get_ips());
 
-  printf("ptrace:LSU读次数:%ld\n", ptrace.get_LSU_read());
+  uint64_t ifu_wait_mem = ptrace.get_IFU_wait_mem_cyc();
+  uint64_t lsu_read_wait = ptrace.get_LSU_read_cyc();
+  uint64_t lsu_write_wait = ptrace.get_LSU_write_cyc();
+  uint64_t total_mem_wait = ifu_wait_mem + lsu_read_wait + lsu_write_wait;
+
+  double cpi_total = (double)ptrace.get_clock() / ptrace.get_instr();
+  double cpi_mem   = (double)total_mem_wait / ptrace.get_instr();
+  double cpi_core  = cpi_total - cpi_mem;
+
+  printf("\nptrace:CPI分解 (总CPI = %.4f):\n", cpi_total);
+  printf("  CPI_core (非访存)          = %.4f\n", cpi_core);
+  printf("  CPI_mem (访存等待总计)      = %.4f\n", cpi_mem);
+
+  printf("\nptrace:IFU取指次数:%ld\n", ptrace.get_IFU_fetch());
+
+  printf("\nptrace:EXU计算次数:%ld\n", ptrace.get_EXU_fini());
+
+  printf("\nptrace:LSU读次数:%ld\n", ptrace.get_LSU_read());
   printf("ptrace:LSU写次数:%ld\n", ptrace.get_LSU_write());
+
+  uint64_t total_clock = ptrace.get_clock();
+  uint64_t wait_start = ptrace.get_IFU_wait_start_cyc();
+  uint64_t wait_mem   = ptrace.get_IFU_wait_mem_cyc();
+  uint64_t fetch      = ptrace.get_IFU_fetch();
+  uint64_t wait_idu   = ptrace.get_IFU_wait_IDU_cyc();
+  uint64_t other      = total_clock - wait_start - wait_mem - fetch - wait_idu;
+
+  printf("\nptrace:IFU 状态周期统计 (总时钟 %ld):\n", total_clock);
+  printf("  IFU_wait_start : %ld  (%.2f%%)\n", wait_start, 100.0 * wait_start / total_clock);
+  printf("  IFU_wait_mem   : %ld  (%.2f%%)\n", wait_mem,   100.0 * wait_mem   / total_clock);
+  printf("  IFU_fetch      : %ld  (%.2f%%)\n", fetch,   100.0 * fetch   / total_clock);
+  printf("  IFU_wait_IDU   : %ld  (%.2f%%)\n", wait_idu,   100.0 * wait_idu   / total_clock);
+  printf("  其他           : %ld  (%.2f%%)\n", other,      100.0 * other      / total_clock);
 
   uint64_t idu_total = ptrace.get_IDU_U() + ptrace.get_IDU_J() + ptrace.get_IDU_I() + 
                        ptrace.get_IDU_Ical() + ptrace.get_IDU_B() + ptrace.get_IDU_Rcal() +
                        ptrace.get_IDU_LOAD() + ptrace.get_IDU_STORE() + ptrace.get_IDU_CSR();
 
-  printf("ptrace:IDU指令类型统计 (总计:%ld):\n", idu_total);
+  printf("\nptrace:IDU指令类型统计 (总计:%ld):\n", idu_total);
   if (idu_total == 0) {
       printf("  (无指令解码)\n");
   } else {

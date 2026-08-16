@@ -54,39 +54,88 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
         case (IFU_state)
             0: nIFU_state = 1;
             1: if(R_fin) begin
-                    if(IDU_ready) nIFU_state = 0;
+                    if(IDU_ready) nIFU_state = 1;
                     else          nIFU_state = 2;
                 end
                 else nIFU_state = 1;
-            2: if(IDU_ready) nIFU_state = 0;
+            2: if(IDU_ready) nIFU_state = 1;
                 else         nIFU_state = 2;
             default: nIFU_state = 0;
         endcase
     end
 
+    always @(posedge clk) begin
+        if(rst) begin
+            AR_work <= 0;
+        end else begin
+            case (IFU_state)
+                0: begin
+                    AR_work <= 1;
+                end
+                1: begin
+                    if(R_fin) begin
+                        if(IDU_ready) begin
+                            AR_work <= 1;
+                        end else begin
+                            AR_work <= 0;
+                        end
+                    end else begin
+                        AR_work <= 0;
+                    end
+                end 
+                2: begin
+                    if(IDU_ready) begin
+                        AR_work <= 1;
+                    end else begin
+                        AR_work <= 0;
+                    end
+                end
+                default;
+            endcase 
+        end
+    end
+
     always @(*) begin
         case (IFU_state)
             0: begin
-                IFU_valid = 0;
-                IFU_ins   = ins_old;
+                IFU_valid   = IFU_valid_old;
+                IFU_ins     = ins_old;
             end
-            1: if(R_fin) begin
-                    IFU_valid = 1;
-                    IFU_ins   = ins_new;
+            1: begin
+                if(R_fin) begin
+                    IFU_valid   = 1;
+                    IFU_ins     = ins_new;
+                end else begin
+                    IFU_valid   = IFU_valid_old;
+                    IFU_ins     = ins_old;
                 end
-                else begin
-                    IFU_valid = 0;
-                    IFU_ins   = ins_old;
-                end
+            end
             2: begin
-                IFU_valid = 1;
-                IFU_ins   = ins_old;
+                IFU_valid   = IFU_valid_old;
+                IFU_ins     = ins_old;
             end
             default: begin
-                IFU_valid = 0;
-                IFU_ins   = ins_old;
+                IFU_valid   = IFU_valid_old;
+                IFU_ins     = ins_old;
             end
-        endcase
+        endcase 
+    end
+
+    // ========== IFU_valid无延迟输出 ==========
+    reg IFU_valid_old;
+    always @(posedge clk) begin
+        if(rst) IFU_valid_old <= 0;
+        else if(R_fin) begin
+            if(IDU_ready) begin
+                IFU_valid_old <= 0;
+            end else begin
+                IFU_valid_old <= 1;
+            end
+        end else begin
+            if(IDU_ready) begin
+                IFU_valid_old <= 0;
+            end
+        end
     end
 
     // ========== 指令缓存 ==========
@@ -99,16 +148,14 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     end
 
     // ========== AXI4 读控制 ==========
-    wire AR_work, R_fin, R_res;
-    assign AR_work = (IFU_state == 0) || ((IFU_state == 1) && (nIFU_state == 0)) ||
-                     ((IFU_state == 2) && (nIFU_state == 0));
+    reg AR_work;
+    wire R_fin, R_res;
     assign R_res   = (R_rtime == 0);
     assign R_fin   = io_master_rvalid && io_master_rready;
 
     // ========== PC 写使能 ==========
     wire PC_wen;
-    assign PC_wen = ((IFU_state == 1) && (nIFU_state == 0)) ||
-                    ((IFU_state == 2) && (nIFU_state == 0));
+    assign PC_wen = IFU_valid && IDU_ready;
 
     // ========== 延时计数器（LSFR 测试） ==========
     wire [4:0] AR_wt_init, AW_wt_init, W_wt_init, R_rt_init, B_rt_init;
@@ -152,7 +199,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
 
     always @(*) begin
         case (AR_state)
-            1'b0: io_master_arvalid = 0;
+            1'b0: io_master_arvalid = AR_work ? 1'b1 : 1'b0;
             1'b1: io_master_arvalid = 1;
         endcase
         io_master_rready = R_res ? 1'b1 : 1'b0;
@@ -202,12 +249,6 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
             dnpc = EXU_npc;      // 来自 EXU 的目标 PC
     end
 
-    // ========== 指令追踪（DPI-C） ==========
-    import "DPI-C" function void itrace(int ins);
-    always @(posedge clk) begin
-        itrace(IFU_ins);
-    end
-
     // ========== PC 寄存器 ==========
     always @(posedge clk) begin
         if(rst) IFU_pc <= 32'h3000_0000;
@@ -218,6 +259,14 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
 
     // 顺序 PC
     assign IFU_snpc = IFU_pc + 32'h4;
+
+`ifndef YOSYS
+
+    // ========== 指令追踪（DPI-C） ==========
+    import "DPI-C" function void itrace(int ins);
+    always @(posedge clk) begin
+        itrace(IFU_ins);
+    end
 
     // ========== 寄存器读取监控（DPI-C） ==========
     import "DPI-C" function void read_reg(int val, int num);
@@ -233,7 +282,10 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     end
 
     // ========== 性能计数器 ==========
+    import "DPI-C" function void IFU_wait_start();
     import "DPI-C" function void IFU_fetch();
+    import "DPI-C" function void IFU_wait_mem();
+    import "DPI-C" function void IFU_wait_IDU();
 
     import "DPI-C" function void IDU_U_cyc();
     import "DPI-C" function void IDU_J_cyc();
@@ -251,7 +303,15 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     wire [2:0] func3  = IFU_ins[14:12];
 
     always @(posedge clk) begin
-        if(R_fin) IFU_fetch();
+        if(!rst) begin
+            if(IFU_state == 0) IFU_wait_start();
+
+            if((IFU_state == 1) && (R_fin == 1)) IFU_fetch();
+
+            if((IFU_state == 1) && (R_fin == 0)) IFU_wait_mem();
+
+            if(IFU_state == 2) IFU_wait_IDU();
+        end
 
         case(opcode)
         7'b0110111:IDU_U_cyc();
@@ -270,5 +330,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
         default;
         endcase
     end
+
+`endif
 
 endmodule

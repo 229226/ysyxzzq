@@ -81,11 +81,6 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
     assign IDU_reg_waddr  = ins[7  + RADDR_WID - 1 : 7];
 
     // ========== ebreak (DPI-C) ==========
-    import "DPI-C" function void ebreak();
-    wire status_ebreak;
-    always @(*) begin
-        if (status_ebreak) ebreak();
-    end
     MuxKeyWithDefault #(1, 32, 1) Mux_ebreak (status_ebreak, ins, 1'b0, {
         32'b000000000001_00000_000_00000_1110011, 1'b1   // ebreak
     });
@@ -242,6 +237,15 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
         endcase
     end
 
+`ifndef YOSYS
+
+    // ========== ebreak (DPI-C) ==========
+    import "DPI-C" function void ebreak();
+    wire status_ebreak;
+    always @(*) begin
+        if (status_ebreak) ebreak();
+    end
+
     // ========== Performance counter ==========
     import "DPI-C" function void IDU_U();
     import "DPI-C" function void IDU_J();
@@ -276,4 +280,6 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
         end 
     end
     
+`endif
+
 endmodule

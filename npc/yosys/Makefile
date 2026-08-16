@@ -1,0 +1,1 @@
+include $(NPC_HOME)/yosys/yosys-sta.mk

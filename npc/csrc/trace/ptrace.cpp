@@ -4,9 +4,19 @@ PTRACE ptrace;
 
 // 外部 DPI-C 函数实现（由 Verilog 调用）
 extern "C" {
-
+    
+void IFU_wait_start() {
+    ptrace.IFU_wait_start_inc();
+}
+void IFU_wait_mem() {
+    ptrace.IFU_wait_mem_inc();
+}
 void IFU_fetch() {
     ptrace.IFU_fetch_inc();
+    ptrace.instr_inc();
+}
+void IFU_wait_IDU() {
+    ptrace.IFU_wait_IDU_inc();
 }
 
 void LSU_read() {
@@ -92,7 +102,7 @@ void IDU_CSR_cyc() {
 }
 
 void EXU_fini() {
-    ptrace.instr_inc();
+    ptrace.EXU_fini_inc();
 }
 
 } // extern "C"
@@ -102,11 +112,10 @@ PTRACE::PTRACE()
 {
     clock       = 0;
     instr       = 0;
+    freq  = 0;
+
     IFU_fetch   = 0;
-    LSU_read    = 0;
-    LSU_write   = 0;
-    LSU_read_cyc  = 0;   // 新增初始化
-    LSU_write_cyc = 0;
+
     IDU_U       = 0;
     IDU_J       = 0;
     IDU_I       = 0;
@@ -126,6 +135,13 @@ PTRACE::PTRACE()
     IDU_LOAD_cyc  = 0;
     IDU_STORE_cyc = 0;
     IDU_CSR_cyc   = 0;
+
+    EXU_fini    = 0;
+
+    LSU_read    = 0;
+    LSU_write   = 0;
+    LSU_read_cyc  = 0;   // 新增初始化
+    LSU_write_cyc = 0;
 }
 
 PTRACE::~PTRACE()
@@ -141,16 +157,32 @@ void PTRACE::instr_inc() {
     instr++;
 }
 
+float PTRACE::get_ipc() {
+    if (clock == 0) return 0.0f;
+    return static_cast<float>(instr) / static_cast<float>(clock);
+}
+
+void PTRACE::set_frequency(uint64_t f) {
+    freq = f;
+}
+
+float PTRACE::get_ips() const {
+    if (clock == 0 || freq == 0) return 0.0f;
+    // IPS = 指令数 / 时间（秒） = instr / (clock / freq) = instr * freq / clock
+    return static_cast<float>(instr) * static_cast<float>(freq) / static_cast<float>(clock);
+}
+
+void PTRACE::IFU_wait_start_inc() {
+    IFU_wait_start_cyc++;
+}
+void PTRACE::IFU_wait_mem_inc() {
+    IFU_wait_mem_cyc++;
+}
 void PTRACE::IFU_fetch_inc() {
     IFU_fetch++;
 }
-
-void PTRACE::LSU_read_inc() {
-    LSU_read++;
-}
-
-void PTRACE::LSU_write_inc() {
-    LSU_write++;
+void PTRACE::IFU_wait_IDU_inc() {
+    IFU_wait_IDU_cyc++;
 }
 
 void PTRACE::IDU_U_inc() {
@@ -189,6 +221,18 @@ void PTRACE::IDU_CSR_inc() {
     IDU_CSR++;
 }
 
+void PTRACE::EXU_fini_inc() {
+    EXU_fini++;
+}
+
+void PTRACE::LSU_read_inc() {
+    LSU_read++;
+}
+
+void PTRACE::LSU_write_inc() {
+    LSU_write++;
+}
+
 // 递增实现（周期）
 void PTRACE::LSU_read_cyc_inc() {
     LSU_read_cyc++;
@@ -222,9 +266,4 @@ void PTRACE::IDU_STORE_cyc_inc() {
 }
 void PTRACE::IDU_CSR_cyc_inc() {
     IDU_CSR_cyc++;
-}
-
-float PTRACE::get_ipc() {
-    if (clock == 0) return 0.0f;
-    return static_cast<float>(instr) / static_cast<float>(clock);
 }

@@ -120,13 +120,12 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
   end
 
   // ========== AXI4 控制信号 ==========
-  wire R_en, AW_en, W_en, R_fin, W_fin, W_res, R_res;
-  assign R_en  = (LSU_state == 0) && IDU_mem_ren && (AR_wtime == 0);
-  assign AW_en = (LSU_state == 0) && IDU_mem_wen && (AW_wtime == 0);
-  assign W_en  = (LSU_state == 0) && IDU_mem_wen && (W_wtime  == 0);
+  wire AR_en, AW_en, W_en, R_fin, W_fin, W_res, R_res;
+  assign AR_en  = (LSU_state == 0) && IDU_mem_ren && EXU_valid && (AR_wtime == 0);
+  assign AW_en = (LSU_state == 0) && IDU_mem_wen && EXU_valid && (AW_wtime == 0);
+  assign W_en  = (LSU_state == 0) && IDU_mem_wen && EXU_valid && (W_wtime  == 0);
   assign R_fin = io_master_rvalid && io_master_rready;
-  assign W_fin = (io_master_awvalid && io_master_awready) &&
-                 (io_master_wvalid  && io_master_wready);
+  assign W_fin = io_master_bvalid && io_master_bready;
   assign W_res = (B_rtime == 0);
   assign R_res = (R_rtime == 0);
 
@@ -192,7 +191,7 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
       1'b1: nW_state = io_master_wready ? 1'b0 : 1'b1;
     endcase
     case (AR_state)
-      1'b0: nAR_state = R_en ? 1'b1 : 1'b0;
+      1'b0: nAR_state = AR_en ? 1'b1 : 1'b0;
       1'b1: nAR_state = io_master_arready ? 1'b0 : 1'b1;
     endcase
   end
@@ -258,7 +257,7 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
 
       // 读地址通道
       case (AR_state)
-        1'b0: if(R_en) begin
+        1'b0: if(AR_en) begin
                 io_master_arvalid <= 1;
                 io_master_araddr  <= EXU_raddr;
                 io_master_arsize  <= arsize;
@@ -404,18 +403,36 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
   assign LSU_csr_wen = EXU_csr_wen;
   assign LSU_csr_ren = EXU_csr_ren;
 
+`ifndef YOSYS
+
   // ========== 性能计数器 ==========
   import "DPI-C" function void LSU_read();
   import "DPI-C" function void LSU_write();
 
   import "DPI-C" function void LSU_read_cyc();
   import "DPI-C" function void LSU_write_cyc();
+
+  reg ST_rcyc,ST_wcyc;
+  always @(posedge clk) begin
+    if(rst) begin
+      ST_rcyc <= 0;
+      ST_wcyc <= 0;
+    end 
+    else begin
+      if(AR_en) ST_rcyc <= 1;
+      else if(R_fin) ST_rcyc <= 0;
+      if(AW_en) ST_wcyc <= 1;
+      else if(W_fin) ST_wcyc <= 0;
+    end
+  end
   always @(posedge clk) begin
     if(R_fin) LSU_read();
     if(W_fin) LSU_write();
 
-    if(IDU_mem_ren&&(!LSU_valid)) LSU_read_cyc();
-    if(IDU_mem_wen&&(!LSU_valid)) LSU_write_cyc();
+    if(ST_rcyc) LSU_read_cyc();
+    if(ST_wcyc) LSU_write_cyc();
   end
+
+`endif
 
 endmodule
