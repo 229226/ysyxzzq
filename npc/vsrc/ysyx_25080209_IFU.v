@@ -153,10 +153,6 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     assign R_res   = (R_rtime == 0);
     assign R_fin   = io_master_rvalid && io_master_rready;
 
-    // ========== PC 写使能 ==========
-    wire PC_wen;
-    assign PC_wen = IFU_valid && IDU_ready;
-
     // ========== 延时计数器（LSFR 测试） ==========
     wire [4:0] AR_wt_init, AW_wt_init, W_wt_init, R_rt_init, B_rt_init;
     assign AR_wt_init = 0;
@@ -250,6 +246,8 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     end
 
     // ========== PC 寄存器 ==========
+    wire PC_wen;
+    assign PC_wen = IFU_valid && IDU_ready;
     always @(posedge clk) begin
         if(rst) IFU_pc <= 32'h3000_0000;
         else begin
@@ -282,53 +280,23 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     end
 
     // ========== 性能计数器 ==========
+    
+
     import "DPI-C" function void IFU_wait_start();
-    import "DPI-C" function void IFU_fetch();
     import "DPI-C" function void IFU_wait_mem();
+    import "DPI-C" function void IFU_update_output();
     import "DPI-C" function void IFU_wait_IDU();
 
-    import "DPI-C" function void IDU_U_cyc();
-    import "DPI-C" function void IDU_J_cyc();
-    import "DPI-C" function void IDU_I_cyc();
-    import "DPI-C" function void IDU_Ical_cyc();
-    import "DPI-C" function void IDU_B_cyc();
-    import "DPI-C" function void IDU_Rcal_cyc();
-
-    import "DPI-C" function void IDU_LOAD_cyc();
-    import "DPI-C" function void IDU_STORE_cyc();
-
-    import "DPI-C" function void IDU_CSR_cyc();
-
-    wire [6:0] opcode = IFU_ins[6:0];
-    wire [2:0] func3  = IFU_ins[14:12];
-
+    import "DPI-C" function void INS_EXE(int ins,bit IDU_ready);
     always @(posedge clk) begin
         if(!rst) begin
             if(IFU_state == 0) IFU_wait_start();
+            else if((IFU_state == 1) && (R_fin == 1)) IFU_update_output();
+            else if((IFU_state == 1) && (R_fin == 0)) IFU_wait_mem();
+            else if(IFU_state == 2) IFU_wait_IDU();
 
-            if((IFU_state == 1) && (R_fin == 1)) IFU_fetch();
-
-            if((IFU_state == 1) && (R_fin == 0)) IFU_wait_mem();
-
-            if(IFU_state == 2) IFU_wait_IDU();
+        INS_EXE(IFU_ins,IDU_ready);
         end
-
-        case(opcode)
-        7'b0110111:IDU_U_cyc();
-        7'b0010111:IDU_U_cyc();
-        7'b1101111:IDU_J_cyc();
-        7'b1100111:IDU_I_cyc();
-        7'b1100011:IDU_B_cyc();
-        7'b0000011:IDU_LOAD_cyc();
-        7'b0100011:IDU_STORE_cyc();
-        7'b0010011:IDU_Ical_cyc();
-        7'b0110011:IDU_Rcal_cyc();
-        7'b1110011:begin
-            if(func3 == 3'b000) IDU_I_cyc();
-            else IDU_CSR_cyc();
-        end
-        default;
-        endcase
     end
 
 `endif

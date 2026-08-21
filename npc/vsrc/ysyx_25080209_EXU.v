@@ -122,9 +122,16 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
 `ifndef YOSYS
 
     // ========== 性能计数器 ==========
-    import "DPI-C" function void EXU_fini();
+    import "DPI-C" function void EXU_wait_IDU();
+    import "DPI-C" function void EXU_update_output();
+    import "DPI-C" function void EXU_wait_LSU();
+
     always @(posedge clk) begin
-        if(EXU_valid && LSU_ready) EXU_fini();
+        if(!rst) begin
+            if((EXU_state == 0) && (!IDU_valid)) EXU_wait_IDU();
+            else if((EXU_state == 0) && IDU_valid) EXU_update_output();
+            else if(EXU_state == 1) EXU_wait_LSU();
+        end
     end
 
 `endif

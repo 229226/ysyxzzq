@@ -86,4 +86,20 @@ module ysyx_25080209_WBU #(DATA_WID = 32)(
         1'b1, CSR_wzimm
     });
 
+    `ifndef YOSYS
+
+    // ========== 性能计数器 ==========
+
+    import "DPI-C" function void WBU_wait_LSU();
+    import "DPI-C" function void WBU_write_reg();
+
+    always @(posedge clk) begin
+        if(!rst) begin
+            if((WBU_state == 0) && LSU_valid) WBU_write_reg();
+            else WBU_wait_LSU();
+        end
+    end
+
+    `endif
+
 endmodule

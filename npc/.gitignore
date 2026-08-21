@@ -10,5 +10,10 @@
 !*.hpp
 !.gitignore
 !README.md
+!*.py
+!*.nxdc
+!*.xlsx
+!microbench记录
+!*.sdc
 build/
 result/

@@ -406,31 +406,22 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
 `ifndef YOSYS
 
   // ========== 性能计数器 ==========
-  import "DPI-C" function void LSU_read();
-  import "DPI-C" function void LSU_write();
+  import "DPI-C" function void LSU_wait_EXU();
+  import "DPI-C" function void LSU_wait_read();
+  import "DPI-C" function void LSU_update_output_r();
+  import "DPI-C" function void LSU_wait_write();
+  import "DPI-C" function void LSU_update_output_w();
+  import "DPI-C" function void LSU_wait_WBU();
 
-  import "DPI-C" function void LSU_read_cyc();
-  import "DPI-C" function void LSU_write_cyc();
-
-  reg ST_rcyc,ST_wcyc;
   always @(posedge clk) begin
-    if(rst) begin
-      ST_rcyc <= 0;
-      ST_wcyc <= 0;
-    end 
-    else begin
-      if(AR_en) ST_rcyc <= 1;
-      else if(R_fin) ST_rcyc <= 0;
-      if(AW_en) ST_wcyc <= 1;
-      else if(W_fin) ST_wcyc <= 0;
+    if(!rst) begin
+      if(LSU_state == 0) LSU_wait_EXU();
+      else if((LSU_state == 1) && (R_fin == 1)) LSU_update_output_r();
+      else if((LSU_state == 1) && (R_fin == 0) && IDU_mem_ren) LSU_wait_read();
+      else if((LSU_state == 1) && (W_fin == 1)) LSU_update_output_w();
+      else if((LSU_state == 1) && (W_fin == 0) && IDU_mem_wen) LSU_wait_write();
+      else if(LSU_state == 2) LSU_wait_WBU();
     end
-  end
-  always @(posedge clk) begin
-    if(R_fin) LSU_read();
-    if(W_fin) LSU_write();
-
-    if(ST_rcyc) LSU_read_cyc();
-    if(ST_wcyc) LSU_write_cyc();
   end
 
 `endif

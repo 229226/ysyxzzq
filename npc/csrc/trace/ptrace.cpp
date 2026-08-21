@@ -2,268 +2,191 @@
 
 PTRACE ptrace;
 
-// 外部 DPI-C 函数实现（由 Verilog 调用）
+// ========== DPI-C 导出函数（供 Verilog 调用） ==========
 extern "C" {
-    
-void IFU_wait_start() {
-    ptrace.IFU_wait_start_inc();
-}
-void IFU_wait_mem() {
-    ptrace.IFU_wait_mem_inc();
-}
-void IFU_fetch() {
-    ptrace.IFU_fetch_inc();
-    ptrace.instr_inc();
-}
-void IFU_wait_IDU() {
-    ptrace.IFU_wait_IDU_inc();
+
+// 基础
+void INS_EXE(int ins, int ready) {
+    ptrace.ins_exe(ins, ready);
 }
 
-void LSU_read() {
-    ptrace.LSU_read_inc();
-}
+// IFU
+void IFU_wait_start()   { ptrace.IFU_wait_start_inc(); }
+void IFU_wait_mem()     { ptrace.IFU_wait_mem_inc(); }
+void IFU_update_output(){ ptrace.IFU_update_output_inc(); }
+void IFU_wait_IDU()     { ptrace.IFU_wait_IDU_inc(); }
 
-void LSU_write() {
-    ptrace.LSU_write_inc();
-}
+// IDU 指令类型
+void IDU_U()    { ptrace.IDU_U_inc(); }
+void IDU_J()    { ptrace.IDU_J_inc(); }
+void IDU_I()    { ptrace.IDU_I_inc(); }
+void IDU_Ical() { ptrace.IDU_Ical_inc(); }
+void IDU_B()    { ptrace.IDU_B_inc(); }
+void IDU_Rcal() { ptrace.IDU_Rcal_inc(); }
+void IDU_LOAD() { ptrace.IDU_LOAD_inc(); }
+void IDU_STORE(){ ptrace.IDU_STORE_inc(); }
+void IDU_CSR()  { ptrace.IDU_CSR_inc(); }
 
-// ---- 新增 LSU 周期计数 DPI-C 函数 ----
-void LSU_read_cyc() {
-    ptrace.LSU_read_cyc_inc();
-}
+// IDU 状态
+void IDU_wait_IFU()       { ptrace.IDU_wait_IFU_inc(); }
+void IDU_update_output()  { ptrace.IDU_update_output_inc(); }
+void IDU_wait_EXU()       { ptrace.IDU_wait_EXU_inc(); }
 
-void LSU_write_cyc() {
-    ptrace.LSU_write_cyc_inc();
-}
+// EXU
+void EXU_wait_IDU()       { ptrace.EXU_wait_IDU_inc(); }
+void EXU_update_output()  { ptrace.EXU_update_output_inc(); }
+void EXU_wait_LSU()       { ptrace.EXU_wait_LSU_inc(); }   // 修正为 LSU
 
-void IDU_U() {
-    ptrace.IDU_U_inc();
-}
+// WBU
+void WBU_wait_LSU()       { ptrace.WBU_wait_LSU_inc(); }
+void WBU_write_reg()      { ptrace.WBU_write_reg_inc(); }
 
-void IDU_J() {
-    ptrace.IDU_J_inc();
-}
-
-void IDU_I() {
-    ptrace.IDU_I_inc();
-}
-
-void IDU_Ical() {
-    ptrace.IDU_Ical_inc();
-}
-
-void IDU_B() {
-    ptrace.IDU_B_inc();
-}
-
-void IDU_Rcal() {
-    ptrace.IDU_Rcal_inc();
-}
-
-void IDU_LOAD() {
-    ptrace.IDU_LOAD_inc();
-}
-
-void IDU_STORE() {
-    ptrace.IDU_STORE_inc();
-}
-
-void IDU_CSR() {
-    ptrace.IDU_CSR_inc();
-}
-
-// 周期计数 DPI-C 函数
-void IDU_U_cyc() {
-    ptrace.IDU_U_cyc_inc();
-}
-void IDU_J_cyc() {
-    ptrace.IDU_J_cyc_inc();
-}
-void IDU_I_cyc() {
-    ptrace.IDU_I_cyc_inc();
-}
-void IDU_Ical_cyc() {
-    ptrace.IDU_Ical_cyc_inc();
-}
-void IDU_B_cyc() {
-    ptrace.IDU_B_cyc_inc();
-}
-void IDU_Rcal_cyc() {
-    ptrace.IDU_Rcal_cyc_inc();
-}
-void IDU_LOAD_cyc() {
-    ptrace.IDU_LOAD_cyc_inc();
-}
-void IDU_STORE_cyc() {
-    ptrace.IDU_STORE_cyc_inc();
-}
-void IDU_CSR_cyc() {
-    ptrace.IDU_CSR_cyc_inc();
-}
-
-void EXU_fini() {
-    ptrace.EXU_fini_inc();
-}
+// LSU
+void LSU_wait_EXU()          { ptrace.LSU_wait_EXU_inc(); }
+void LSU_wait_read()         { ptrace.LSU_wait_read_inc(); }
+void LSU_update_output_r()   { ptrace.LSU_update_output_r_inc(); }
+void LSU_wait_write()        { ptrace.LSU_wait_write_inc(); }
+void LSU_update_output_w()   { ptrace.LSU_update_output_w_inc(); }
+void LSU_wait_WBU()          { ptrace.LSU_wait_WBU_inc(); }
 
 } // extern "C"
 
-// PTRACE 构造函数
-PTRACE::PTRACE()
-{
-    clock       = 0;
-    instr       = 0;
-    freq  = 0;
+// ========== PTRACE 实现 ==========
 
-    IFU_fetch   = 0;
+PTRACE::PTRACE() {
+    clock = 0;
+    instr = 0;
+    freq = 0;
+    curr_cyc = 0;
+    last_idu_ready = 0;
 
-    IDU_U       = 0;
-    IDU_J       = 0;
-    IDU_I       = 0;
-    IDU_Ical    = 0;
-    IDU_B       = 0;
-    IDU_Rcal    = 0;
-    IDU_LOAD    = 0;
-    IDU_STORE   = 0;
-    IDU_CSR     = 0;
-    // 初始化周期计数器
-    IDU_U_cyc     = 0;
-    IDU_J_cyc     = 0;
-    IDU_I_cyc     = 0;
-    IDU_Ical_cyc  = 0;
-    IDU_B_cyc     = 0;
-    IDU_Rcal_cyc  = 0;
-    IDU_LOAD_cyc  = 0;
-    IDU_STORE_cyc = 0;
-    IDU_CSR_cyc   = 0;
+    total_U_cyc = 0;
+    total_J_cyc = 0;
+    total_I_cyc = 0;
+    total_Ical_cyc = 0;
+    total_B_cyc = 0;
+    total_Rcal_cyc = 0;
+    total_LOAD_cyc = 0;
+    total_STORE_cyc = 0;
+    total_CSR_cyc = 0;
+    total_OTHER_cyc = 0;
 
-    EXU_fini    = 0;
+    IFU_wait_start_cyc = 0;
+    IFU_wait_mem_cyc = 0;
+    IFU_update_output_cnt = 0;
+    IFU_wait_IDU_cyc = 0;
 
-    LSU_read    = 0;
-    LSU_write   = 0;
-    LSU_read_cyc  = 0;   // 新增初始化
-    LSU_write_cyc = 0;
+    IDU_U = 0;
+    IDU_J = 0;
+    IDU_I = 0;
+    IDU_Ical = 0;
+    IDU_B = 0;
+    IDU_Rcal = 0;
+    IDU_LOAD = 0;
+    IDU_STORE = 0;
+    IDU_CSR = 0;
+    IDU_wait_IFU_cyc = 0;
+    IDU_update_output_cnt = 0;
+    IDU_wait_EXU_cyc = 0;
+
+    EXU_wait_IDU_cyc = 0;
+    EXU_update_output_cnt = 0;
+    EXU_wait_LSU_cyc = 0;   // 改名
+
+    WBU_wait_LSU_cyc = 0;
+    WBU_write_reg_cnt = 0;
+
+    LSU_wait_EXU_cyc = 0;
+    LSU_wait_read_cyc = 0;
+    LSU_update_output_r_cnt = 0;
+    LSU_wait_write_cyc = 0;
+    LSU_update_output_w_cnt = 0;
+    LSU_wait_WBU_cyc = 0;
 }
 
-PTRACE::~PTRACE()
-{
-}
+PTRACE::~PTRACE() {}
 
-// 递增实现（数量）
-void PTRACE::clock_inc() {
-    clock++;
-}
+// 基础方法
+void PTRACE::clock_inc() { clock++; }
+void PTRACE::instr_inc() { instr++; }
 
-void PTRACE::instr_inc() {
-    instr++;
-}
-
-float PTRACE::get_ipc() {
-    if (clock == 0) return 0.0f;
-    return static_cast<float>(instr) / static_cast<float>(clock);
-}
-
-void PTRACE::set_frequency(uint64_t f) {
-    freq = f;
+float PTRACE::get_ipc() const {
+    return (clock == 0) ? 0.0f : static_cast<float>(instr) / static_cast<float>(clock);
 }
 
 float PTRACE::get_ips() const {
     if (clock == 0 || freq == 0) return 0.0f;
-    // IPS = 指令数 / 时间（秒） = instr / (clock / freq) = instr * freq / clock
     return static_cast<float>(instr) * static_cast<float>(freq) / static_cast<float>(clock);
 }
 
-void PTRACE::IFU_wait_start_inc() {
-    IFU_wait_start_cyc++;
-}
-void PTRACE::IFU_wait_mem_inc() {
-    IFU_wait_mem_cyc++;
-}
-void PTRACE::IFU_fetch_inc() {
-    IFU_fetch++;
-}
-void PTRACE::IFU_wait_IDU_inc() {
-    IFU_wait_IDU_cyc++;
+void PTRACE::ins_exe(int ins, int ready) {
+    curr_cyc++;
+
+    if (ready == 1 && last_idu_ready == 0) {
+        uint32_t opcode = ins & 0x7f;
+        uint32_t func3  = (ins >> 12) & 0x7;
+        switch (opcode) {
+            case 0b0110111: // LUI
+            case 0b0010111: // AUIPC
+                total_U_cyc += curr_cyc; break;
+            case 0b1101111: // JAL
+                total_J_cyc += curr_cyc; break;
+            case 0b1100111: // JALR
+                total_I_cyc += curr_cyc; break;
+            case 0b1100011: // Branch
+                total_B_cyc += curr_cyc; break;
+            case 0b0000011: // Load
+                total_LOAD_cyc += curr_cyc; break;
+            case 0b0100011: // Store
+                total_STORE_cyc += curr_cyc; break;
+            case 0b0010011: // ALU I-type
+                total_Ical_cyc += curr_cyc; break;
+            case 0b0110011: // ALU R-type
+                total_Rcal_cyc += curr_cyc; break;
+            case 0b1110011: // CSR / ecall / ebreak
+                if (func3 == 0)
+                    total_I_cyc += curr_cyc;
+                else
+                    total_CSR_cyc += curr_cyc;
+                break;
+            default:
+                total_OTHER_cyc += curr_cyc; break;
+        }
+        curr_cyc = 0;
+        instr_inc();
+    }
+    last_idu_ready = ready;
 }
 
-void PTRACE::IDU_U_inc() {
-    IDU_U++;
-}
+// ---- 递增实现 ----
+void PTRACE::IFU_wait_start_inc() { IFU_wait_start_cyc++; }
+void PTRACE::IFU_wait_mem_inc()   { IFU_wait_mem_cyc++; }
+void PTRACE::IFU_update_output_inc() { IFU_update_output_cnt++; }
+void PTRACE::IFU_wait_IDU_inc()   { IFU_wait_IDU_cyc++; }
 
-void PTRACE::IDU_J_inc() {
-    IDU_J++;
-}
+void PTRACE::IDU_U_inc()          { IDU_U++; }
+void PTRACE::IDU_J_inc()          { IDU_J++; }
+void PTRACE::IDU_I_inc()          { IDU_I++; }
+void PTRACE::IDU_Ical_inc()       { IDU_Ical++; }
+void PTRACE::IDU_B_inc()          { IDU_B++; }
+void PTRACE::IDU_Rcal_inc()       { IDU_Rcal++; }
+void PTRACE::IDU_LOAD_inc()       { IDU_LOAD++; }
+void PTRACE::IDU_STORE_inc()      { IDU_STORE++; }
+void PTRACE::IDU_CSR_inc()        { IDU_CSR++; }
+void PTRACE::IDU_wait_IFU_inc()   { IDU_wait_IFU_cyc++; }
+void PTRACE::IDU_update_output_inc() { IDU_update_output_cnt++; }
+void PTRACE::IDU_wait_EXU_inc()   { IDU_wait_EXU_cyc++; }
 
-void PTRACE::IDU_I_inc() {
-    IDU_I++;
-}
+void PTRACE::EXU_wait_IDU_inc()   { EXU_wait_IDU_cyc++; }
+void PTRACE::EXU_update_output_inc() { EXU_update_output_cnt++; }
+void PTRACE::EXU_wait_LSU_inc()   { EXU_wait_LSU_cyc++; }   // 改名
 
-void PTRACE::IDU_Ical_inc() {
-    IDU_Ical++;
-}
+void PTRACE::WBU_wait_LSU_inc()   { WBU_wait_LSU_cyc++; }
+void PTRACE::WBU_write_reg_inc()  { WBU_write_reg_cnt++; }
 
-void PTRACE::IDU_B_inc() {
-    IDU_B++;
-}
-
-void PTRACE::IDU_Rcal_inc() {
-    IDU_Rcal++;
-}
-
-void PTRACE::IDU_LOAD_inc() {
-    IDU_LOAD++;
-}
-
-void PTRACE::IDU_STORE_inc() {
-    IDU_STORE++;
-}
-
-void PTRACE::IDU_CSR_inc() {
-    IDU_CSR++;
-}
-
-void PTRACE::EXU_fini_inc() {
-    EXU_fini++;
-}
-
-void PTRACE::LSU_read_inc() {
-    LSU_read++;
-}
-
-void PTRACE::LSU_write_inc() {
-    LSU_write++;
-}
-
-// 递增实现（周期）
-void PTRACE::LSU_read_cyc_inc() {
-    LSU_read_cyc++;
-}
-void PTRACE::LSU_write_cyc_inc() {
-    LSU_write_cyc++;
-}
-void PTRACE::IDU_U_cyc_inc() {
-    IDU_U_cyc++;
-}
-void PTRACE::IDU_J_cyc_inc() {
-    IDU_J_cyc++;
-}
-void PTRACE::IDU_I_cyc_inc() {
-    IDU_I_cyc++;
-}
-void PTRACE::IDU_Ical_cyc_inc() {
-    IDU_Ical_cyc++;
-}
-void PTRACE::IDU_B_cyc_inc() {
-    IDU_B_cyc++;
-}
-void PTRACE::IDU_Rcal_cyc_inc() {
-    IDU_Rcal_cyc++;
-}
-void PTRACE::IDU_LOAD_cyc_inc() {
-    IDU_LOAD_cyc++;
-}
-void PTRACE::IDU_STORE_cyc_inc() {
-    IDU_STORE_cyc++;
-}
-void PTRACE::IDU_CSR_cyc_inc() {
-    IDU_CSR_cyc++;
-}
+void PTRACE::LSU_wait_EXU_inc()         { LSU_wait_EXU_cyc++; }
+void PTRACE::LSU_wait_read_inc()        { LSU_wait_read_cyc++; }
+void PTRACE::LSU_update_output_r_inc()  { LSU_update_output_r_cnt++; }
+void PTRACE::LSU_wait_write_inc()       { LSU_wait_write_cyc++; }
+void PTRACE::LSU_update_output_w_inc()  { LSU_update_output_w_cnt++; }
+void PTRACE::LSU_wait_WBU_inc()         { LSU_wait_WBU_cyc++; }

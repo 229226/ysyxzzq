@@ -95,6 +95,12 @@ NPC_EXEC := $(BIN) $(ARGS) $(IMG)
 
 YOSYS_PROJ_DIR ?= $(abspath $(NPC_HOME)/yosys)
 
+
+#fill_excel
+FILL_EXCEL_SCRIPT ?= $(NPC_PATH)/tools/fill_excel.py
+EXCEL_FILE ?= $(abspath $(NPC_PATH)/doc/NPC性能评估结果.xlsx)
+SIM_LOG = $(BUILD_PATH)/npc.log
+
 all: $(BIN)
 
 run: $(BIN)
@@ -116,8 +122,17 @@ sim: $(BIN)
 sta:
 	$(MAKE) -C $(YOSYS_PROJ_DIR) sta
 
+fill_excel:
+	@echo "Filling Excel with performance data..."
+	@if [ ! -f $(FILL_EXCEL_SCRIPT) ]; then \
+		echo "Error: script $(FILL_EXCEL_SCRIPT) not found."; \
+		exit 1; \
+	fi
+	@python3 $(FILL_EXCEL_SCRIPT) $(SIM_LOG) $(EXCEL_FILE)
+	@echo "Excel updated at $(EXCEL_FILE)"
+
 clean: 
 	rm -rf $(BUILD_PATH)
 
-.PHONY: all run gdb valgrind sim clean
+.PHONY: all run gdb valgrind sim sta fill_excel clean
 include ../Makefile

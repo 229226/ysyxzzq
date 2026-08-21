@@ -1,6 +1,6 @@
 MY_PROJ_PATH ?= $(NPC_HOME)
 DESIGN ?= ysyx_25080209
-SDC_FILE ?= $(MY_PROJ_PATH)/gcd.sdc
+SDC_FILE ?= $(MY_PROJ_PATH)/yosys/gcd.sdc
 RTL_FILES ?= $(shell find $(MY_PROJ_PATH)/vsrc -name "*.v")
 export CLK_FREQ_MHZ ?= 5000
 PDK = nangate45
