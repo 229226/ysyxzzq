@@ -43,4 +43,7 @@ gdb: insert-arg
 valgrind: insert-arg
 	$(MAKE) -C $(NPC_HOME) valgrind  ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
 
+flame: insert-arg
+	$(MAKE) -C $(NPC_HOME) flame  ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
+
 .PHONY: insert-arg
