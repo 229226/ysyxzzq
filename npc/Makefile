@@ -122,6 +122,10 @@ fill_excel:
 	@python3 $(FILL_EXCEL_SCRIPT) $(SIM_LOG) $(EXCEL_FILE)
 	@echo "Excel updated at $(EXCEL_FILE)"
 
+#进行perf仿真时需要开启NPC的TRACE功能以输出数据
+perf: sta
+	$(MAKE) -C $(NPC_HOME)/../am-kernels/benchmarks/microbench ARCH=riscv32e-npcsoc run mainargs=train
+
 clean:
 	rm -rf $(BUILD_PATH)
 
