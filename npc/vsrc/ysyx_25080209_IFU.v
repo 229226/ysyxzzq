@@ -41,6 +41,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     input 		io_master_rlast,
     input 	[3:0] 	io_master_rid
 );
+    parameter BOOT_PC = 32'h80000000;
 
     // ========== IFU 状态机 ==========
     // 0 idle, 1 wait sram and IDU, 2 wait IDU
@@ -249,7 +250,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     wire PC_wen;
     assign PC_wen = IFU_valid && IDU_ready;
     always @(posedge clk) begin
-        if(rst) IFU_pc <= 32'h3000_0000;
+        if(rst) IFU_pc <= BOOT_PC;
         else begin
             if(PC_wen) IFU_pc <= dnpc;
         end

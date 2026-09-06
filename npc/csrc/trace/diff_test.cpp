@@ -36,7 +36,7 @@ void diff_init(){
 
     my_difftest_init(0);
 
-    my_difftest_memcpy(RESETADDR,(void *)RESETADDR,mem_size,DIFFTEST_TO_REF);
+    my_difftest_memcpy(RESETADDR,(void *)RESETADDR,PMEM_SIZE,DIFFTEST_TO_REF);
 
     NPC tmp = {0};
     tmp.pc = RESETADDR;

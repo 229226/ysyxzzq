@@ -1,4 +1,5 @@
-TOP_NAME = ysyxSoCFull
+TOP_NAME ?= ysyxSoCFull
+BOOT_PC ?= 30000000
 
 VERILATOR = verilator
 NPROC ?= $(shell nproc 2>/dev/null || echo 1)
@@ -45,7 +46,11 @@ NXDC_FILES = constr/ysyxSoC.nxdc
 SRC_AUTO_BIND = $(abspath $(BUILD_PATH)/auto_bind.cpp)
 $(SRC_AUTO_BIND): $(NXDC_FILES) | $(BUILD_PATH)
 	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $(NXDC_FILES) $@
+
+ifeq ($(TOP_NAME),ysyxSoCFull)
 CSRC += $(SRC_AUTO_BIND)
+endif
+
 include $(NVBOARD_HOME)/scripts/nvboard.mk
 
 # readline
@@ -61,12 +66,20 @@ $(LIBCAPSTONE):
 
 WAVE_FILE = $(BUILD_PATH)/waveform.fst
 
-# ========== 编译选项（关键） ==========
+# ========== 编译选项 ==========
 CXXFLAGS += -Wall -DTOP_NAME=V$(TOP_NAME)
+
+# 根据 TOP_NAME 定义对应的 C++ 宏
+ifeq ($(TOP_NAME),ysyxSoCFull)
+    CXXFLAGS += -DYSYXSOC_CONFIG
+else ifeq ($(TOP_NAME),NPC)
+    CXXFLAGS += -DNPC_CONFIG
+else
+    $(error Unsupported TOP_NAME: $(TOP_NAME))
+endif
+
 CXXFLAGS += -I$(CINC_PATH) -I$(CINC_PATH)/io -I$(CINC_PATH)/trace -I$(INC_PATH)
 CXXFLAGS += $(LIBS)
-# 用于 perf 调用栈展开
-#CXXFLAGS += -g -fno-omit-frame-pointer -fno-optimize-sibling-calls
 
 ARGS ?=
 IMG ?=
@@ -74,7 +87,7 @@ IMG ?=
 $(BUILD_PATH):
 	@mkdir -p $(BUILD_PATH)
 
-$(BIN): $(VSRC) $(CSRC) $(HEADERS) $(NVBOARD_ARCHIVE)
+$(BIN): $(VSRC) $(CSRC) $(HEADERS) $(NVBOARD_ARCHIVE) update-boot-pc
 	@$(VERILATOR) $(VERILATOR_FLAGS)\
 		--top-module $(TOP_NAME)\
 		$(VSRC) $(CSRC) $(NVBOARD_ARCHIVE)\
@@ -91,6 +104,17 @@ YOSYS_PROJ_DIR ?= $(abspath $(NPC_HOME)/yosys)
 FILL_EXCEL_SCRIPT ?= $(NPC_PATH)/tools/fill_excel.py
 EXCEL_FILE ?= $(abspath $(NPC_PATH)/doc/NPC性能评估结果.xlsx)
 SIM_LOG = $(BUILD_PATH)/npc.log
+
+IFU_FILE := $(VSRC_PATH)/ysyx_25080209_IFU.v
+update-boot-pc:
+	@if grep -qE "^[[:space:]]*parameter BOOT_PC[[:space:]]=[[:space:]]*32'h$(BOOT_PC);[[:space:]]*$$" \
+		$(IFU_FILE); then \
+		echo ">>> BOOT_PC = 0x$(BOOT_PC), unchanged."; \
+	else \
+		echo ">>> BOOT_PC changed -> 0x$(BOOT_PC)"; \
+		sed -i -E "s/^[[:space:]]*parameter BOOT_PC.*/    parameter BOOT_PC = 32'h$(BOOT_PC);/" \
+			$(IFU_FILE); \
+	fi
 
 all: $(BIN)
 

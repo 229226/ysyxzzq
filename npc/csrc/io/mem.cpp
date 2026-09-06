@@ -1,20 +1,9 @@
 #include "mem.hpp"
-#include "moniter.hpp"
 #include "trace.hpp"
 #include "npc_ioe.hpp"
 #include "timer.hpp"
-#include "psram.hpp"
-
-const int mem_size = 0x01000000;
-static uint8_t flash[mem_size];
-
-//SoC
-extern "C" void flash_read(int32_t addr, int32_t *data) {
-    *data = *(int32_t *)((uint64_t)flash+(addr&0xfffffffC));
-}
-extern "C" void mrom_read(int32_t addr, int32_t *data) {
-    *data = *(int32_t *)(addr&0xfffffffC);
-}
+#include "flash.hpp"
+#include "pmem.hpp"
 
 void init_mem(char *file_img){
     if(file_img == NULL){
@@ -29,19 +18,16 @@ void init_mem(char *file_img){
     assert(stat(file_img,&img_stat) == 0);
     int img_size = img_stat.st_size;
 
-    int ret = read(img_fd,flash,img_size);
+    int ret = 0;
+    #ifdef NPC_CONFIG
+    ret = read(img_fd,PMEM_Get_PADDR(),img_size);
+    #endif
+    #ifdef YSYXSOC_CONFIG
+    ret = read(img_fd,Flash_Get_PADDR(),img_size);
+    #endif
     assert(ret != -1);
 
     close(img_fd);
-}
-
-int pmem_check(uint32_t addr){
-    if(addr >= RESETADDR && addr <= (RESETADDR + mem_size - 1)){
-        return 1;
-    }
-    npc_status.status = NPC_ERROR;
-    printf("npc:地址在mem之外 addr = 0x%08x\n",addr);
-    return 0;
 }
 
 int mmio_check(int addr){
@@ -52,7 +38,6 @@ int mmio_check(int addr){
 }
 
 static uint64_t timer = 0;
-
 int mmio_read(int raddr){
     if(raddr == TIMER_ADDR){
         return (int)timer;
@@ -70,42 +55,19 @@ void mmio_write(int waddr,int wdata,int wmask){
     }
 }
 
-extern "C" int pmem_read(int raddr){
+extern "C" int mem_read(int raddr){
     if(mmio_check(raddr)){
         return mmio_read(raddr);
+    }else{
+        return pmem_read(raddr);
     }
-
-    uint32_t addr = (uint32_t)raddr;
-    int data = *(int *)addr;
-
-    #ifdef MTRACE_CONFIG
-        mtrace_read(addr,data,4);
-    #endif
-    return data;
 }
-extern "C" void pmem_write(int waddr, int wdata, char wmask){
+extern "C" void mem_write(int waddr, int wdata, char wmask){
     if(mmio_check(waddr)){
         mmio_write(waddr,wdata,wmask);
         return;
-    }
-
-    if(!pmem_check(waddr)){
+    }else{
+        pmem_write(waddr,wdata,wmask);
         return;
     }
-
-    uint32_t addr = (uint32_t)waddr;
-    switch (wmask)
-    {
-    case 0b00000001: *((uint8_t* )addr) = wdata;break;
-    case 0b00000011: *((uint16_t* )addr) = wdata;break;
-    case 0b00001111: *((uint32_t* )addr) = wdata;break;
-    default:
-        printf("mem:读取使用的wmask错误 %d\n",wmask);
-        assert(0);
-        break;
-    }
-    #ifdef MTRACE_CONFIG
-        mtrace_write(waddr,wdata,4);
-    #endif
-    
 }

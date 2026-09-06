@@ -1,5 +1,5 @@
 (* keep_hierarchy = "yes" *)  // 保持模块层次结构
-module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
+module  ysyx_25080209_MEM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
     input clk,rst,
     //waddr
     input [ADDR_WID-1:0]AWADDR,
@@ -38,7 +38,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         reg W_state,nW_state;
     //wres
         //00 wait wdata
-        //01 wait sram and ready
+        //01 wait MEM and ready
         //10 wait ready
         reg [1:0]B_state,nB_state;
     //raddr
@@ -47,7 +47,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         reg AR_state,nAR_state;
     //rdata
         //00 wait raddr
-        //01 wait sram and ready
+        //01 wait MEM and ready
         //10 wait ready
         reg [1:0]R_state,nR_state;
     always @(posedge clk) begin
@@ -64,14 +64,14 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
         case (AW_state)
             0:if(AWVALID) nAW_state = 1;
             else nAW_state = 0;
-            1:if(SRAM_wfini) nAW_state = 0;
+            1:if(MEM_wfini) nAW_state = 0;
             else nAW_state = 1;
             default:nAW_state = 0;
         endcase
         case (W_state)
             0:if(WVALID) nW_state = 1;
             else nW_state = 0;
-            1:if(SRAM_wfini) nW_state = 0;
+            1:if(MEM_wfini) nW_state = 0;
             else nW_state = 1;
             default:nAW_state = 0;
         endcase
@@ -79,7 +79,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
             2'b00:if((AW_state==1)&(W_state==1))
                     nB_state = 2'b01; 
                 else nB_state = 2'b00;
-            2'b01:if(SRAM_wfini)
+            2'b01:if(MEM_wfini)
                     if(BREADY) nB_state = 2'b00;
                     else nB_state = 2'b10;
                 else nB_state = 2'b01;
@@ -101,7 +101,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
                 end
                 else nR_state = 2'b00;
             end
-            2'b01:if(SRAM_rfini)
+            2'b01:if(MEM_rfini)
                     if(RREADY) nR_state = 2'b00;
                     else nR_state = 2'b10;
                 else nR_state = 2'b01;
@@ -127,7 +127,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
                 BRESP = 2'b0;
             end
             2'b01:begin
-                if(SRAM_wfini) BVALID = 1;
+                if(MEM_wfini) BVALID = 1;
                 else BVALID = 0;
                 BRESP = 2'b0;
             end
@@ -154,7 +154,7 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
                 RRESP = 2'b0;
             end
             2'b01:begin
-                if(SRAM_rfini) RVALID = 1;
+                if(MEM_rfini) RVALID = 1;
                 else RVALID = 0;
                 RRESP = 2'b0;
             end
@@ -168,63 +168,52 @@ module  ysyx_25080209_SRAM_AXI #(ADDR_WID = 32,DATA_WID = 32) (
             end
         endcase
     end
-//SRAM
+
 //控制信号
-    wire SRAM_wfini,SRAM_rfini;
-    assign SRAM_wfini = SRAM_wtime == 0;
-    assign SRAM_rfini = SRAM_rtime == 0;
-    wire SRAM_wen,SRAM_ren;
-    assign SRAM_wen = ((B_state==0)&&(nB_state==1));
-    assign SRAM_ren = (R_state == 0) && (nR_state == 1);
-    //注:SRAM延迟为SRAM_wt_init/SRAM_rt_init + 1
-    wire [4:0]SRAM_wt_init,SRAM_rt_init;
-    assign SRAM_wt_init = 0;
-    assign SRAM_rt_init = 0;
-    // ysyx_25080209_LSFR SRAM_LSFR1(.clk(clk),.rst(rst),.data(SRAM_wt_init));
-    // ysyx_25080209_LSFR SRAM_LSFR2(.clk(clk),.rst(rst),.data(SRAM_rt_init));
-    reg [4:0] SRAM_wtime,SRAM_rtime;
-    wire SRAM_wt_wk,SRAM_rt_wk;
-    assign SRAM_wt_wk = ((B_state==0)&&(nB_state==1)) || ((B_state==1)&&(nB_state==1));
-    assign SRAM_rt_wk = ((R_state==0)&&(nR_state==1)) || ((R_state==1)&&(nR_state==1));
+    wire MEM_wfini,MEM_rfini;
+    assign MEM_wfini = MEM_wtime == 0;
+    assign MEM_rfini = MEM_rtime == 0;
+    wire MEM_wen,MEM_ren;
+    assign MEM_wen = (AWVALID && WVALID);
+    assign MEM_ren = (R_state == 0) && (nR_state == 1);
+    //注:MEM延迟为MEM_wt_init/MEM_rt_init + 1
+    wire [4:0]MEM_wt_init,MEM_rt_init;
+    assign MEM_wt_init = 0;
+    assign MEM_rt_init = 0;
+    // ysyx_25080209_LSFR MEM_LSFR1(.clk(clk),.rst(rst),.data(MEM_wt_init));
+    // ysyx_25080209_LSFR MEM_LSFR2(.clk(clk),.rst(rst),.data(MEM_rt_init));
+    reg [4:0] MEM_wtime,MEM_rtime;
+    wire MEM_wt_wk,MEM_rt_wk;
+    assign MEM_wt_wk = ((B_state==0)&&(nB_state==1)) || ((B_state==1)&&(nB_state==1));
+    assign MEM_rt_wk = ((R_state==0)&&(nR_state==1)) || ((R_state==1)&&(nR_state==1));
     always @(posedge clk) begin
         if(rst) begin
-            SRAM_wtime <= SRAM_wt_init;SRAM_rtime <= SRAM_rt_init;
+            MEM_wtime <= MEM_wt_init;MEM_rtime <= MEM_rt_init;
         end
         else begin
-            if(SRAM_wt_wk) 
-                if(SRAM_wtime != 0) SRAM_wtime <= SRAM_wtime - 1;
-                else SRAM_wtime <= SRAM_wt_init;
-            else SRAM_wtime <= SRAM_wtime;
-            if(SRAM_rt_wk)
-                if(SRAM_rtime != 0) SRAM_rtime <= SRAM_rtime - 1;
-                else SRAM_rtime <= SRAM_rt_init;
-            else SRAM_rtime <= SRAM_rtime;
+            if(MEM_wt_wk) 
+                if(MEM_wtime != 0) MEM_wtime <= MEM_wtime - 1;
+                else MEM_wtime <= MEM_wt_init;
+            else MEM_wtime <= MEM_wtime;
+            if(MEM_rt_wk)
+                if(MEM_rtime != 0) MEM_rtime <= MEM_rtime - 1;
+                else MEM_rtime <= MEM_rt_init;
+            else MEM_rtime <= MEM_rtime;
         end
     end
 //读写DPI-C
-
 `ifndef YOSYS
-
-    import "DPI-C" function int pmem_read(input int raddr);
-    import "DPI-C" function void pmem_write(
+    import "DPI-C" function int mem_read(input int raddr);
+    import "DPI-C" function void mem_write(
     input int waddr, input int wdata, input byte wmask);
     always @(posedge clk) begin
         if(rst) begin
             RDATA <= 0;
         end 
         else begin
-            if(SRAM_ren) RDATA <= pmem_read(ARADDR);
-            else RDATA <= RDATA;
+            if(MEM_ren) RDATA <= mem_read(ARADDR);
+            if(MEM_wen) mem_write(AWADDR,WDATA,{4'b0000,WSTRB});
         end
-        if(SRAM_wen) pmem_write(AWADDR,WDATA,{4'b0000,WSTRB});
     end
-
 `endif
-//SRAM读写
-    // reg [DATA_WID-1:0] SRAM [2**ADDR_WID-1:0];
-    // always @(posedge clk) begin
-    //     if(SRAM_ren) RDATA <= SRAM[ARADDR];
-    //     else RDATA <= RDATA;
-    //     if(SRAM_wen) SRAM[AWADDR] <= WDATA;
-    // end
 endmodule

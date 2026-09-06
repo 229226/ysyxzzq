@@ -3,15 +3,22 @@
 
 #include <verilated.h>
 #include <verilated_fst_c.h>
+
+#ifdef NPC_CONFIG
+#include <VNPC.h>
+#include <VNPC__Dpi.h>
+#elif defined(YSYXSOC_CONFIG)
 #include <VysyxSoCFull.h>
-//DPI-C
-#include "svdpi.h"
 #include <VysyxSoCFull__Dpi.h>
+#else
+#error "No valid configuration: please define NPC_CONFIG or YSYXSOC_CONFIG"
+#endif
+
+// DPI-C
+#include "svdpi.h"
 
 #include "common.hpp"
 #include "mem.hpp"
-
-#define TOP_NAME VysyxSoCFull
 
 void verilator_init(int argc, char *argv[]);
 

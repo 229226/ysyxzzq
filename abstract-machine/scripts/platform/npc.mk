@@ -18,7 +18,8 @@ MAINARGS_MAX_LEN = 64
 MAINARGS_PLACEHOLDER = The insert-arg rule in Makefile will insert mainargs here.
 CFLAGS += -DMAINARGS_MAX_LEN=$(MAINARGS_MAX_LEN) -DMAINARGS_PLACEHOLDER=\""$(MAINARGS_PLACEHOLDER)"\"
 
-#NPCFLAGS += -b
+NPCFLAGS += -b
+NPC_MK_ARGS := TOP_NAME=NPC BOOT_PC=80000000
 
 insert-arg: image
 	@python $(AM_HOME)/tools/insert-arg.py $(IMAGE).bin $(MAINARGS_MAX_LEN) "$(MAINARGS_PLACEHOLDER)" "$(mainargs)"
@@ -29,15 +30,15 @@ image: image-dep
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
 run: insert-arg 
-	$(MAKE) -C $(NPC_HOME) run  ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
+	$(MAKE) -C $(NPC_HOME) $(NPC_MK_ARGS) run ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
 
 sim: insert-arg
-	$(MAKE) -C $(NPC_HOME) sim 	ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
+	$(MAKE) -C $(NPC_HOME) $(NPC_MK_ARGS) sim ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
 
 gdb: insert-arg
-	$(MAKE) -C $(NPC_HOME) gdb  ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
+	$(MAKE) -C $(NPC_HOME) $(NPC_MK_ARGS) gdb ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
 
 valgrind: insert-arg
-	$(MAKE) -C $(NPC_HOME) valgrind  ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
+	$(MAKE) -C $(NPC_HOME) $(NPC_MK_ARGS) valgrind ARGS=$(NPCFLAGS) IMG=$(IMAGE).bin
 
 .PHONY: insert-arg
