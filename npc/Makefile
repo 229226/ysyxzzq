@@ -114,6 +114,7 @@ update-boot-pc:
 		echo ">>> BOOT_PC changed -> 0x$(BOOT_PC)"; \
 		sed -i -E "s/^[[:space:]]*parameter BOOT_PC.*/    parameter BOOT_PC = 32'h$(BOOT_PC);/" \
 			$(IFU_FILE); \
+		rm -rf $(BUILD_PATH)/*;\
 	fi
 
 all: $(BIN)
@@ -185,5 +186,5 @@ clean-flame:
 
 # ==============================================
 
-.PHONY: all run gdb valgrind sim sta fill_excel clean flame clean-flame
+.PHONY: all run gdb valgrind sim sta fill_excel clean flame clean-flame update-boot-pc
 include ../Makefile

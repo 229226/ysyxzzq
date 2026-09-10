@@ -415,7 +415,10 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
 
   always @(posedge clk) begin
     if(!rst) begin
-      if(LSU_state == 0) LSU_wait_EXU();
+      if(LSU_state == 0 && (!EXU_valid)) LSU_wait_EXU();
+      else if(LSU_state == 0 && EXU_valid && (!LSU_work)) LSU_wait_EXU();
+      else if((LSU_state == 0) && EXU_valid && IDU_mem_ren) LSU_wait_read();
+      else if((LSU_state == 0) && EXU_valid && IDU_mem_wen) LSU_wait_write();
       else if((LSU_state == 1) && (R_fin == 1)) LSU_update_output_r();
       else if((LSU_state == 1) && (R_fin == 0) && IDU_mem_ren) LSU_wait_read();
       else if((LSU_state == 1) && (W_fin == 1)) LSU_update_output_w();

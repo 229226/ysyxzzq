@@ -41,189 +41,140 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     input 		io_master_rlast,
     input 	[3:0] 	io_master_rid
 );
-    parameter BOOT_PC = 32'h80000000;
+    parameter BOOT_PC = 32'h30000000;
 
-    // ========== IFU 状态机 ==========
-    // 0 idle, 1 wait sram and IDU, 2 wait IDU
+    wire R_fin = addr_valid && icache_ready;
+
+    localparam IDLE_ST = 2'd0;
+    localparam WAIT_MEM_ST   = 2'd1;
+    localparam WAIT_READY = 2'd2;
     reg [1:0] IFU_state, nIFU_state;
     always @(posedge clk) begin
         if(rst) IFU_state <= 0;
         else    IFU_state <= nIFU_state;
     end
-
     always @(*) begin
-        case (IFU_state)
-            0: nIFU_state = 1;
-            1: if(R_fin) begin
-                    if(IDU_ready) nIFU_state = 1;
-                    else          nIFU_state = 2;
-                end
-                else nIFU_state = 1;
-            2: if(IDU_ready) nIFU_state = 1;
-                else         nIFU_state = 2;
-            default: nIFU_state = 0;
+        case(IFU_state)
+        IDLE_ST:begin
+            nIFU_state = WAIT_MEM_ST;
+        end
+        WAIT_MEM_ST:begin
+            if(R_fin) nIFU_state = WAIT_READY;
+            else nIFU_state = WAIT_MEM_ST;
+        end
+        WAIT_READY:begin
+            if(IDU_ready) nIFU_state = IDLE_ST;
+            else nIFU_state = WAIT_READY;
+        end
+        default:nIFU_state = IDLE_ST;
         endcase
     end
-
     always @(posedge clk) begin
         if(rst) begin
-            AR_work <= 0;
-        end else begin
-            case (IFU_state)
-                0: begin
-                    AR_work <= 1;
-                end
-                1: begin
-                    if(R_fin) begin
-                        if(IDU_ready) begin
-                            AR_work <= 1;
-                        end else begin
-                            AR_work <= 0;
-                        end
-                    end else begin
-                        AR_work <= 0;
-                    end
-                end 
-                2: begin
-                    if(IDU_ready) begin
-                        AR_work <= 1;
-                    end else begin
-                        AR_work <= 0;
-                    end
-                end
-                default;
-            endcase 
+            addr_valid <= 0;
+            addr_i <= 0;
+            IFU_valid <= 0;
         end
-    end
-
-    always @(*) begin
-        case (IFU_state)
-            0: begin
-                IFU_valid   = IFU_valid_old;
-                IFU_ins     = ins_old;
+        else begin
+            case(IFU_state)
+            IDLE_ST:begin
+                addr_valid <= 1;
+                addr_i <= IFU_pc;
             end
-            1: begin
+            WAIT_MEM_ST:begin
                 if(R_fin) begin
-                    IFU_valid   = 1;
-                    IFU_ins     = ins_new;
-                end else begin
-                    IFU_valid   = IFU_valid_old;
-                    IFU_ins     = ins_old;
+                    addr_valid <= 0;
+
+                    IFU_ins <= data_o;
+                    IFU_valid <= 1;
                 end
             end
-            2: begin
-                IFU_valid   = IFU_valid_old;
-                IFU_ins     = ins_old;
+            WAIT_READY:begin
+                if(IDU_ready) begin
+                    IFU_valid <= 0;
+                end
             end
-            default: begin
-                IFU_valid   = IFU_valid_old;
-                IFU_ins     = ins_old;
-            end
-        endcase 
-    end
-
-    // ========== IFU_valid无延迟输出 ==========
-    reg IFU_valid_old;
-    always @(posedge clk) begin
-        if(rst) IFU_valid_old <= 0;
-        else if(R_fin) begin
-            if(IDU_ready) begin
-                IFU_valid_old <= 0;
-            end else begin
-                IFU_valid_old <= 1;
-            end
-        end else begin
-            if(IDU_ready) begin
-                IFU_valid_old <= 0;
-            end
+            default;
+            endcase
         end
     end
 
-    // ========== 指令缓存 ==========
-    wire [DATA_WID-1:0] ins_new;
-    reg  [DATA_WID-1:0] ins_old;
-    always @(posedge clk) begin
-        if(rst) ins_old <= 0;
-        else if(R_fin) ins_old <= ins_new;
-        else ins_old <= ins_old;
-    end
+    // ========== icache ==========
+    reg addr_valid,icache_ready;
+    reg [31:0] addr_i,data_o;
 
-    // ========== AXI4 读控制 ==========
-    reg AR_work;
-    wire R_fin, R_res;
-    assign R_res   = (R_rtime == 0);
-    assign R_fin   = io_master_rvalid && io_master_rready;
+    ysyx_25080209_icache #(
+    .BLOCK_SIZE(32),
+    .BLOCK_NUM(16)
+    ) icache (
+    .clk(clk),
+    .rst(rst),
 
-    // ========== 延时计数器（LSFR 测试） ==========
-    wire [4:0] AR_wt_init, AW_wt_init, W_wt_init, R_rt_init, B_rt_init;
-    assign AR_wt_init = 0;
-    assign AW_wt_init = 0;
-    assign W_wt_init  = 0;
-    assign R_rt_init  = 0;
-    assign B_rt_init  = 0;
+    .addr_valid(addr_valid),
+    .addr_i(addr_i),
+    .icache_ready(icache_ready),
+    .data_o(data_o),
 
-    reg [4:0] AR_wtime, AW_wtime, W_wtime, R_rtime, B_rtime;
-    always @(posedge clk) begin
-        if(rst) begin
-            AR_wtime <= AR_wt_init;
-            AW_wtime <= AW_wt_init;
-            W_wtime  <= W_wt_init;
-            R_rtime  <= R_rt_init;
-            B_rtime  <= B_rt_init;
-        end else begin
-            AR_wtime <= (AR_wtime != 5'b0) ? AR_wtime - 1 : AR_wt_init;
-            AW_wtime <= (AW_wtime != 5'b0) ? AW_wtime - 1 : AW_wt_init;
-            W_wtime  <= (W_wtime  != 5'b0) ? W_wtime  - 1 : W_wt_init;
-            R_rtime  <= (R_rtime  != 5'b0) ? R_rtime  - 1 : R_rt_init;
-            B_rtime  <= (B_rtime  != 5'b0) ? B_rtime  - 1 : B_rt_init;
-        end
-    end
+    .io_master_awready(io_master_awready),
+    .io_master_awvalid(io_master_awvalid),
+    .io_master_awaddr(io_master_awaddr),
+    .io_master_awid(io_master_awid),
+    .io_master_awlen(io_master_awlen),
+    .io_master_awsize(io_master_awsize),
+    .io_master_awburst(io_master_awburst),
 
-    // ========== AXI4 地址通道状态机 ==========
-    reg AR_state, nAR_state;
-    always @(posedge clk) begin
-        if(rst) AR_state <= 1'b0;
-        else    AR_state <= nAR_state;
-    end
+    .io_master_wready(io_master_wready),
+    .io_master_wvalid(io_master_wvalid),
+    .io_master_wdata(io_master_wdata),
+    .io_master_wstrb(io_master_wstrb),
+    .io_master_wlast(io_master_wlast),
 
-    always @(*) begin
-        case (AR_state)
-            1'b0: nAR_state = AR_work ? 1'b1 : 1'b0;
-            1'b1: nAR_state = io_master_arready ? 1'b0 : 1'b1;
-            default: nAR_state = 1'b0;
-        endcase
-    end
+    .io_master_bready(io_master_bready),
+    .io_master_bvalid(io_master_bvalid),
+    .io_master_bresp(io_master_bresp),
+    .io_master_bid(io_master_bid),
 
-    always @(*) begin
-        case (AR_state)
-            1'b0: io_master_arvalid = AR_work ? 1'b1 : 1'b0;
-            1'b1: io_master_arvalid = 1;
-        endcase
-        io_master_rready = R_res ? 1'b1 : 1'b0;
-    end
+    .io_master_arready(io_master_arready),
+    .io_master_arvalid(io_master_arvalid),
+    .io_master_araddr(io_master_araddr),
+    .io_master_arid(io_master_arid),
+    .io_master_arlen(io_master_arlen),
+    .io_master_arsize(io_master_arsize),
+    .io_master_arburst(io_master_arburst),
 
-    // ========== AXI4 输出信号（读通道） ==========
-    assign io_master_araddr  = IFU_pc;
-    assign io_master_arsize  = 3'b010;
-    assign io_master_arburst = 2'b01;
-    // 其他读通道固定值
-    assign io_master_arid    = 0;
-    assign io_master_arlen   = 0;
+    .io_master_rready(io_master_rready),
+    .io_master_rvalid(io_master_rvalid),
+    .io_master_rresp(io_master_rresp),
+    .io_master_rdata(io_master_rdata),
+    .io_master_rlast(io_master_rlast),
+    .io_master_rid(io_master_rid)
+    );
 
-    assign ins_new = io_master_rdata;
+    // // ========== IFU_valid无延迟输出 ==========
+    // reg IFU_valid_old;
+    // always @(posedge clk) begin
+    //     if(rst) IFU_valid_old <= 0;
+    //     else if(R_fin) begin
+    //         if(IDU_ready) begin
+    //             IFU_valid_old <= 0;
+    //         end else begin
+    //             IFU_valid_old <= 1;
+    //         end
+    //     end else begin
+    //         if(IDU_ready) begin
+    //             IFU_valid_old <= 0;
+    //         end
+    //     end
+    // end
 
-    // ========== AXI4 写通道全部置零 ==========
-    assign io_master_awvalid = 0;
-    assign io_master_awaddr  = 0;
-    assign io_master_awid    = 0;
-    assign io_master_awlen   = 0;
-    assign io_master_awsize  = 0;
-    assign io_master_awburst = 0;
-    assign io_master_wvalid  = 0;
-    assign io_master_wdata   = 0;
-    assign io_master_wstrb   = 0;
-    assign io_master_wlast   = 0;
-    assign io_master_bready  = 0;
+    // // ========== 指令缓存 ==========
+    // wire [DATA_WID-1:0] ins_new;
+    // reg  [DATA_WID-1:0] ins_old;
+    // always @(posedge clk) begin
+    //     if(rst) ins_old <= 0;
+    //     else if(R_fin) ins_old <= ins_new;
+    //     else ins_old <= ins_old;
+    // end
 
     // ========== 响应反馈 ==========
     reg [1:0] bresp, rresp;

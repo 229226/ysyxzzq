@@ -124,7 +124,8 @@ int sim_exec(int turns){
         if(npc_status.ebreak_ret == 0){
           sim_exec_one();
           sim_exec_one();
-          sim_exec_one();//再执行3个周期方便ptrace
+          sim_exec_one();
+          sim_exec_one();//再执行4个周期方便ptrace
           trace_printf("npc:HIT GOOD TRAP\n");
           break;
         }else{
@@ -152,7 +153,7 @@ int sim_exec(int turns){
   trace_printf("\n[sim_exec] 总执行时间: %lld 分钟, %lld 秒, %lld 毫秒 (总计 %lld ms)\n",
          minutes, seconds, millis, (long long)total_ms);
 
-  ptrace.set_frequency(727908000UL);
+  ptrace.set_frequency(735075000UL);
 
   // ======== 基础统计 ========
   uint64_t total_clock = ptrace.get_clock() - 19; // 减去复位周期
