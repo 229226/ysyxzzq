@@ -35,7 +35,7 @@ void IDU_wait_EXU()       { ptrace.IDU_wait_EXU_inc(); }
 // EXU
 void EXU_wait_IDU()       { ptrace.EXU_wait_IDU_inc(); }
 void EXU_update_output()  { ptrace.EXU_update_output_inc(); }
-void EXU_wait_LSU()       { ptrace.EXU_wait_LSU_inc(); }   // 修正为 LSU
+void EXU_wait_LSU()       { ptrace.EXU_wait_LSU_inc(); }
 
 // WBU
 void WBU_wait_LSU()       { ptrace.WBU_wait_LSU_inc(); }
@@ -48,6 +48,9 @@ void LSU_update_output_r()   { ptrace.LSU_update_output_r_inc(); }
 void LSU_wait_write()        { ptrace.LSU_wait_write_inc(); }
 void LSU_update_output_w()   { ptrace.LSU_update_output_w_inc(); }
 void LSU_wait_WBU()          { ptrace.LSU_wait_WBU_inc(); }
+
+// ICache
+void icache_access(int mem_type, int is_hit) { ptrace.icache_access_inc(mem_type, is_hit); }
 
 } // extern "C"
 
@@ -91,7 +94,7 @@ PTRACE::PTRACE() {
 
     EXU_wait_IDU_cyc = 0;
     EXU_update_output_cnt = 0;
-    EXU_wait_LSU_cyc = 0;   // 改名
+    EXU_wait_LSU_cyc = 0;
 
     WBU_wait_LSU_cyc = 0;
     WBU_write_reg_cnt = 0;
@@ -102,6 +105,13 @@ PTRACE::PTRACE() {
     LSU_wait_write_cyc = 0;
     LSU_update_output_w_cnt = 0;
     LSU_wait_WBU_cyc = 0;
+
+    icache_hit_cnt = 0;
+    icache_miss_cnt = 0;
+    for (int i = 0; i < ICACHE_MEM_TYPE_NUM; i++) {
+        icache_mem_hit_cnt[i] = 0;
+        icache_mem_miss_cnt[i] = 0;
+    }
 }
 
 PTRACE::~PTRACE() {}
@@ -179,7 +189,7 @@ void PTRACE::IDU_wait_EXU_inc()   { IDU_wait_EXU_cyc++; }
 
 void PTRACE::EXU_wait_IDU_inc()   { EXU_wait_IDU_cyc++; }
 void PTRACE::EXU_update_output_inc() { EXU_update_output_cnt++; }
-void PTRACE::EXU_wait_LSU_inc()   { EXU_wait_LSU_cyc++; }   // 改名
+void PTRACE::EXU_wait_LSU_inc()   { EXU_wait_LSU_cyc++; }
 
 void PTRACE::WBU_wait_LSU_inc()   { WBU_wait_LSU_cyc++; }
 void PTRACE::WBU_write_reg_inc()  { WBU_write_reg_cnt++; }
@@ -190,3 +200,37 @@ void PTRACE::LSU_update_output_r_inc()  { LSU_update_output_r_cnt++; }
 void PTRACE::LSU_wait_write_inc()       { LSU_wait_write_cyc++; }
 void PTRACE::LSU_update_output_w_inc()  { LSU_update_output_w_cnt++; }
 void PTRACE::LSU_wait_WBU_inc()         { LSU_wait_WBU_cyc++; }
+
+void PTRACE::icache_access_inc(int mem_type, int is_hit) {
+    if (mem_type < 0 || mem_type >= ICACHE_MEM_TYPE_NUM)
+        mem_type = ICACHE_MEM_OTHER;
+
+    if (is_hit) {
+        icache_hit_cnt++;
+        icache_mem_hit_cnt[mem_type]++;
+    } else {
+        icache_miss_cnt++;
+        icache_mem_miss_cnt[mem_type]++;
+    }
+}
+
+uint64_t PTRACE::get_icache_mem_hit_cnt(int type) const {
+    if (type < 0 || type >= ICACHE_MEM_TYPE_NUM) return 0;
+    return icache_mem_hit_cnt[type];
+}
+
+uint64_t PTRACE::get_icache_mem_miss_cnt(int type) const {
+    if (type < 0 || type >= ICACHE_MEM_TYPE_NUM) return 0;
+    return icache_mem_miss_cnt[type];
+}
+
+const char* PTRACE::icache_mem_type_name(int type) {
+    switch (type) {
+        case ICACHE_MEM_FLASH: return "flash";
+        case ICACHE_MEM_MROM:  return "mrom";
+        case ICACHE_MEM_SDRAM: return "sdram";
+        case ICACHE_MEM_PSRAM: return "psram";
+        case ICACHE_MEM_SRAM:  return "sram";
+        default:               return "other";
+    }
+}

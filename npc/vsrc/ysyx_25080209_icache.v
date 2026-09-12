@@ -60,6 +60,23 @@ wire hit = icache_valid && (addr_tag == icache_tag);
 
 wire rmem_fin = io_master_rvalid && io_master_rready;
 
+// ========== 取指地址所属的存储器类型 ==========
+// 地址区间参考 abstract-machine/scripts/ysyxsoclinker.ld 中的 MEMORY 定义
+localparam MEM_FLASH = 3'd0;
+localparam MEM_MROM  = 3'd1;
+localparam MEM_SDRAM = 3'd2;
+localparam MEM_PSRAM = 3'd3;
+localparam MEM_SRAM  = 3'd4;
+localparam MEM_OTHER = 3'd5;
+
+wire [2:0] mem_type =
+    (input_addr >= 32'h30000000 && input_addr < 32'h31000000) ? MEM_FLASH : // flash  16M
+    (input_addr >= 32'h20000000 && input_addr < 32'h20001000) ? MEM_MROM  : // mrom   4K
+    (input_addr >= 32'ha0000000 && input_addr < 32'ha8000000) ? MEM_SDRAM : // sdram  128M
+    (input_addr >= 32'h80000000 && input_addr < 32'h80400000) ? MEM_PSRAM : // psram  4M
+    (input_addr >= 32'h0f000000 && input_addr < 32'h0f002000) ? MEM_SRAM  : // sram   8K
+                                                                MEM_OTHER;
+
 always @(posedge clk) begin
     if(rst) icache_state <= ST_WAIT_IFU;
     else icache_state <= icache_nstate;
@@ -131,5 +148,23 @@ always @(posedge clk) begin
 end
 
 assign io_master_rready = 1;
+
+`ifndef YOSYS
+
+    // ========== 性能计数器 ==========
+    // 每次访问按地址所属存储器类型分别统计 hit/miss
+    // DPI-C 的 int 形参为 32 位，这里补齐位宽避免 WIDTHEXPAND 警告
+    import "DPI-C" function void icache_access(int mem_type, int is_hit);
+
+    always @(posedge clk) begin
+        if(!rst) begin
+            case(icache_state)
+            ST_SEARCH: icache_access({29'b0, mem_type}, {31'b0, hit});
+            default;
+            endcase
+        end
+    end
+
+`endif
 
 endmodule

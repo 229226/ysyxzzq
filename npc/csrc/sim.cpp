@@ -216,7 +216,7 @@ int sim_exec(int turns){
     print_idu("IDU_wait_EXU", wait_exu);
   }
 
-  // ======== 3. EXU 模块统计（已修正为 wait_LSU） ========
+  // ======== 3. EXU 模块统计 ========
   {
     uint64_t wait_idu = ptrace.get_EXU_wait_IDU_cyc();
     uint64_t upd_out  = ptrace.get_EXU_update_output_cnt();
@@ -272,6 +272,41 @@ int sim_exec(int turns){
     };
     print_wbu("WBU_wait_LSU", wait_lsu);
     print_wbu("WBU_write_reg", write_reg);
+  }
+
+  // ======== 6. ICache 模块统计 ========
+  {
+    uint64_t ic_hit   = ptrace.get_icache_hit_cnt();
+    uint64_t ic_miss  = ptrace.get_icache_miss_cnt();
+    uint64_t ic_total = ic_hit + ic_miss;
+    double   hit_rate = (ic_total > 0) ? 100.0 * ic_hit / ic_total : 0.0;
+
+    trace_printf("\nptrace:ICache 统计 (总访问 %ld 次):\n", ic_total);
+    trace_printf("  %-25s : %ld  (%.2f%%)\n", "Hit",  ic_hit,  hit_rate);
+    trace_printf("  %-25s : %ld  (%.2f%%)\n", "Miss", ic_miss,
+                 ic_total > 0 ? 100.0 * ic_miss / ic_total : 0.0);
+    trace_printf("  %-25s : %.2f%%\n",        "Hit Rate", hit_rate);
+
+    // 按取指地址所属的存储器类型细分（地址区间参考 ysyxsoclinker.ld）
+    trace_printf("\nptrace:ICache 按存储器类型统计 (总访问 %ld 次):\n", ic_total);
+    static const char* const mem_range[PTRACE::ICACHE_MEM_TYPE_NUM] = {
+        "0x30000000-0x30ffffff",
+        "0x20000000-0x20000fff",
+        "0xa0000000-0xa7ffffff",
+        "0x80000000-0x803fffff",
+        "0x0f000000-0x0f001fff",
+        "未映射",
+    };
+    for (int t = 0; t < PTRACE::ICACHE_MEM_TYPE_NUM; t++) {
+      uint64_t m_hit   = ptrace.get_icache_mem_hit_cnt(t);
+      uint64_t m_miss  = ptrace.get_icache_mem_miss_cnt(t);
+      uint64_t m_total = m_hit + m_miss;
+      trace_printf("  %-6s (%-23s) : 访问 %ld (%.2f%%)  命中 %ld  缺失 %ld  命中率 %.2f%%\n",
+                   PTRACE::icache_mem_type_name(t), mem_range[t], m_total,
+                   ic_total > 0 ? 100.0 * m_total / ic_total : 0.0,
+                   m_hit, m_miss,
+                   m_total > 0 ? 100.0 * m_hit / m_total : 0.0);
+    }
   }
 
   // ======== IDU 指令类型统计 ========

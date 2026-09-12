@@ -4,9 +4,22 @@
 #include <cstdint>
 
 class PTRACE {
+public:
+    // ICache 取指地址所属的存储器类型（编码与 icache.v 中的 MEM_* localparam 一致）
+    // 地址区间参考 abstract-machine/scripts/ysyxsoclinker.ld
+    enum ICacheMemType {
+        ICACHE_MEM_FLASH = 0,
+        ICACHE_MEM_MROM,
+        ICACHE_MEM_SDRAM,
+        ICACHE_MEM_PSRAM,
+        ICACHE_MEM_SRAM,
+        ICACHE_MEM_OTHER,
+        ICACHE_MEM_TYPE_NUM
+    };
+
 private:
-    uint64_t clock;          // 总时钟周期
-    uint64_t instr;          // 完成指令数（由INS_EXE累加）
+    uint64_t clock;
+    uint64_t instr;
     uint64_t freq;
 
     // 用于 INS_EXE 跟踪当前指令
@@ -45,10 +58,10 @@ private:
     uint64_t IDU_update_output_cnt;
     uint64_t IDU_wait_EXU_cyc;
 
-    // EXU 统计（修正：wait_LSU 取代 wait_WBU）
+    // EXU 统计
     uint64_t EXU_wait_IDU_cyc;
     uint64_t EXU_update_output_cnt;
-    uint64_t EXU_wait_LSU_cyc;   // 原 EXU_wait_WBU_cyc
+    uint64_t EXU_wait_LSU_cyc;
 
     // WBU 统计
     uint64_t WBU_wait_LSU_cyc;
@@ -61,6 +74,13 @@ private:
     uint64_t LSU_wait_write_cyc;
     uint64_t LSU_update_output_w_cnt;
     uint64_t LSU_wait_WBU_cyc;
+
+    // ICache 统计
+    uint64_t icache_hit_cnt;
+    uint64_t icache_miss_cnt;
+    // 按存储器类型分开的 ICache 统计
+    uint64_t icache_mem_hit_cnt[ICACHE_MEM_TYPE_NUM];
+    uint64_t icache_mem_miss_cnt[ICACHE_MEM_TYPE_NUM];
 
 public:
     PTRACE();
@@ -103,7 +123,7 @@ public:
     // EXU
     void EXU_wait_IDU_inc();
     void EXU_update_output_inc();
-    void EXU_wait_LSU_inc();   // 原 EXU_wait_WBU_inc
+    void EXU_wait_LSU_inc();
 
     // WBU
     void WBU_wait_LSU_inc();
@@ -116,6 +136,9 @@ public:
     void LSU_wait_write_inc();
     void LSU_update_output_w_inc();
     void LSU_wait_WBU_inc();
+
+    // ICache
+    void icache_access_inc(int mem_type, int is_hit);
 
     // Getter 方法（供 sim.cpp 打印）
     uint64_t get_IFU_wait_start_cyc() const { return IFU_wait_start_cyc; }
@@ -138,7 +161,7 @@ public:
 
     uint64_t get_EXU_wait_IDU_cyc() const { return EXU_wait_IDU_cyc; }
     uint64_t get_EXU_update_output_cnt() const { return EXU_update_output_cnt; }
-    uint64_t get_EXU_wait_LSU_cyc() const { return EXU_wait_LSU_cyc; }   // 改名
+    uint64_t get_EXU_wait_LSU_cyc() const { return EXU_wait_LSU_cyc; }
 
     uint64_t get_WBU_wait_LSU_cyc() const { return WBU_wait_LSU_cyc; }
     uint64_t get_WBU_write_reg_cnt() const { return WBU_write_reg_cnt; }
@@ -149,6 +172,14 @@ public:
     uint64_t get_LSU_wait_write_cyc() const { return LSU_wait_write_cyc; }
     uint64_t get_LSU_update_output_w_cnt() const { return LSU_update_output_w_cnt; }
     uint64_t get_LSU_wait_WBU_cyc() const { return LSU_wait_WBU_cyc; }
+
+    // ICache getter
+    uint64_t get_icache_hit_cnt()  const { return icache_hit_cnt; }
+    uint64_t get_icache_miss_cnt() const { return icache_miss_cnt; }
+    uint64_t get_icache_mem_hit_cnt(int type) const;
+    uint64_t get_icache_mem_miss_cnt(int type) const;
+    // 存储器类型名称，type 越界返回 "other"
+    static const char* icache_mem_type_name(int type);
 
     // 指令周期统计
     uint64_t get_total_U_cyc()     const { return total_U_cyc; }
