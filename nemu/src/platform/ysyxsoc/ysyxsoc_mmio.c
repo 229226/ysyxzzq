@@ -3,6 +3,9 @@
 #include <platform/ysyxsoc/ysyxsoc_sram.h>
 #include <platform/ysyxsoc/ysyxsoc_flash.h>
 #include <platform/ysyxsoc/ysyxsoc_psram.h>
+#include <platform/ysyxsoc/ysyxsoc_sdram.h>
+#include <platform/ysyxsoc/ysyxsoc_uart.h>
+#include <platform/ysyxsoc/ysyxsoc_clint.h>
 
 static YSYXSOC_MMIO ysyx_mmio_list[YSYX_MMIO_MNUM];
 static int ysyxsoc_mmio_num = 0;
@@ -31,7 +34,11 @@ YSYXSOC_MMIO ysyx_mmio_find(paddr_t addr){
 
 word_t ysyxsoc_read(paddr_t addr, int len){
     YSYXSOC_MMIO mmio = ysyx_mmio_find(addr);
-    paddr_t *raddr = (paddr_t *)(mmio.mem + (addr&((paddr_t)(mmio.lenth-1))));
+    paddr_t offset = addr & (paddr_t)(mmio.lenth - 1);
+
+    if(mmio.read != NULL) return mmio.read(offset, len);
+
+    paddr_t *raddr = (paddr_t *)(mmio.mem + offset);
     switch (len)
     {
     case 1: return *(uint8_t  *)raddr;
@@ -44,7 +51,11 @@ word_t ysyxsoc_read(paddr_t addr, int len){
 
 void ysyxsoc_write(paddr_t addr, int len, word_t data){
     YSYXSOC_MMIO mmio = ysyx_mmio_find(addr);
-    paddr_t *waddr = (paddr_t *)(mmio.mem + (addr&(mmio.lenth - 1)));
+    paddr_t offset = addr & (paddr_t)(mmio.lenth - 1);
+
+    if(mmio.write != NULL) { mmio.write(offset, len, data); return; }
+
+    paddr_t *waddr = (paddr_t *)(mmio.mem + offset);
     switch (len)
     {
     case 1: *(uint8_t  *)waddr = data; return;
@@ -59,4 +70,7 @@ void ysyxsoc_mmio_init(){
     ysyxsoc_sram_init();
     ysyxsoc_flash_init();
     ysyxsoc_psram_init();
+    ysyxsoc_sdram_init();
+    ysyxsoc_uart_init();
+    ysyxsoc_clint_init();
 }

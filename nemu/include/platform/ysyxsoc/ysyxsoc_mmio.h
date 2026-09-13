@@ -13,6 +13,12 @@
 #define LEN_FLASH   0x01000000
 #define ADDR_PSRAM  0x80000000
 #define LEN_PSRAM   0x00400000
+#define ADDR_SDRAM  0xa0000000
+#define LEN_SDRAM   0x08000000
+#define ADDR_UART   0x10000000
+#define LEN_UART    0x00001000
+#define ADDR_CLINT  0x02000000
+#define LEN_CLINT   0x00010000
 
 typedef enum MMIO_RW {OR,OW,RAW} MMIO_RW;
 
@@ -21,6 +27,10 @@ typedef struct YSYXSOC_MMIO {
     uint32_t lenth;
     uint8_t *mem;
     MMIO_RW access;
+    // 设备自定义的读写行为，offset 为相对 addr 的偏移。
+    // 为 NULL 时退化为对 mem 的普通内存访问（ROM/RAM 类设备用这种）。
+    word_t (*read)(paddr_t offset, int len);
+    void   (*write)(paddr_t offset, int len, word_t data);
 } YSYXSOC_MMIO;
 
 YSYXSOC_MMIO ysyx_mmio_find(paddr_t addr);
