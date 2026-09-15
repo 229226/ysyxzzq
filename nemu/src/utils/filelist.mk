@@ -13,6 +13,10 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
+ifeq ($(CONFIG_PCTRACE),)
+SRCS-BLACKLIST-y += src/utils/pctrace.c
+endif
+
 ifeq ($(CONFIG_ITRACE)$(CONFIG_IQUEUE),)
 SRCS-BLACKLIST-y += src/utils/disasm.c
 else
