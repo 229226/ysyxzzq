@@ -49,7 +49,12 @@ static bool write_case(const TestCase &tc, const std::string &path) {
     return pclose(fp) == 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    // 数据统一生成到指定目录（默认当前目录），由 Makefile 传 build/ 进来。
+    // cases.txt 里记的也是带目录的相对路径，这样 run_tests.sh 在 test/ 下
+    // 直接把它喂给 cachesim 就能找到文件。
+    const std::string outdir = (argc > 1) ? argv[1] : ".";
+
     // 说明里各用例的推导都基于：块大小 4B（一条指令），
     // 直接映射的组号 = 块号 & (组数-1)，全相联基准按近似 OPT 替换。
     std::vector<TestCase> cases = {
@@ -80,16 +85,17 @@ int main() {
           32, 8, 1, {{0, 8}}, 8, 4, 4, 0, 0 },
     };
 
-    FILE *list = fopen("cases.txt", "w");
+    const std::string list_path = outdir + "/cases.txt";
+    FILE *list = fopen(list_path.c_str(), "w");
     if (list == NULL) {
-        fprintf(stderr, "无法写出 cases.txt\n");
+        fprintf(stderr, "无法写出 %s\n", list_path.c_str());
         return 1;
     }
 
     printf("生成测试用的 pctrace 数据：\n\n");
     for (size_t i = 0; i < cases.size(); i++) {
         const TestCase &tc = cases[i];
-        const std::string path = std::string(tc.name) + ".bin.bz2";
+        const std::string path = outdir + "/" + tc.name + ".bin.bz2";
 
         if (!write_case(tc, path)) {
             fprintf(stderr, "生成 %s 失败\n", path.c_str());
@@ -114,6 +120,6 @@ int main() {
     }
 
     fclose(list);
-    printf("期望值已写入 cases.txt，用 `make check` 逐个对比。\n");
+    printf("期望值已写入 %s，用 `make check` 逐个对比。\n", list_path.c_str());
     return 0;
 }
