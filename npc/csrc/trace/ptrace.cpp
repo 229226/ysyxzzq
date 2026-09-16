@@ -51,6 +51,8 @@ void LSU_wait_WBU()          { ptrace.LSU_wait_WBU_inc(); }
 
 // ICache
 void icache_access(int mem_type, int is_hit) { ptrace.icache_access_inc(mem_type, is_hit); }
+void icache_hit_cycle(int cycles)  { ptrace.icache_hit_cycle_inc(cycles); }
+void icache_miss_cycle(int cycles) { ptrace.icache_miss_cycle_inc(cycles); }
 
 } // extern "C"
 
@@ -108,6 +110,8 @@ PTRACE::PTRACE() {
 
     icache_hit_cnt = 0;
     icache_miss_cnt = 0;
+    icache_hit_cycle_sum = 0;
+    icache_miss_cycle_sum = 0;
     for (int i = 0; i < ICACHE_MEM_TYPE_NUM; i++) {
         icache_mem_hit_cnt[i] = 0;
         icache_mem_miss_cnt[i] = 0;
@@ -212,6 +216,32 @@ void PTRACE::icache_access_inc(int mem_type, int is_hit) {
         icache_miss_cnt++;
         icache_mem_miss_cnt[mem_type]++;
     }
+}
+
+void PTRACE::icache_hit_cycle_inc(int cycles)  { icache_hit_cycle_sum += cycles; }
+void PTRACE::icache_miss_cycle_inc(int cycles) { icache_miss_cycle_sum += cycles; }
+
+double PTRACE::get_icache_avg_hit_time() const {
+    return icache_hit_cnt ? (double)icache_hit_cycle_sum / icache_hit_cnt : 0.0;
+}
+
+double PTRACE::get_icache_avg_miss_time() const {
+    return icache_miss_cnt ? (double)icache_miss_cycle_sum / icache_miss_cnt : 0.0;
+}
+
+double PTRACE::get_icache_avg_miss_penalty() const {
+    const double miss_time = get_icache_avg_miss_time();
+    const double hit_time  = get_icache_avg_hit_time();
+    // 缺失代价 = 缺失时多花的那部分；理论上不该为负，兜一下底
+    return (miss_time > hit_time) ? (miss_time - hit_time) : 0.0;
+}
+
+double PTRACE::get_icache_amat() const {
+    const uint64_t total = icache_hit_cnt + icache_miss_cnt;
+    if (total == 0) return 0.0;
+
+    const double miss_rate = (double)icache_miss_cnt / total;
+    return get_icache_avg_hit_time() + miss_rate * get_icache_avg_miss_penalty();
 }
 
 uint64_t PTRACE::get_icache_mem_hit_cnt(int type) const {

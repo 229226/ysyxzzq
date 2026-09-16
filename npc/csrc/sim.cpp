@@ -281,11 +281,14 @@ int sim_exec(int turns){
     uint64_t ic_total = ic_hit + ic_miss;
     double   hit_rate = (ic_total > 0) ? 100.0 * ic_hit / ic_total : 0.0;
 
+    // 统一字段宽度，保证整段冒号对齐
+    static const int IC_LABEL_W = 32;
+
     trace_printf("\nptrace:ICache 统计 (总访问 %ld 次):\n", ic_total);
-    trace_printf("  %-25s : %ld  (%.2f%%)\n", "Hit",  ic_hit,  hit_rate);
-    trace_printf("  %-25s : %ld  (%.2f%%)\n", "Miss", ic_miss,
+    trace_printf("  %-*s : %ld  (%.2f%%)\n", IC_LABEL_W, "Hit",  ic_hit,  hit_rate);
+    trace_printf("  %-*s : %ld  (%.2f%%)\n", IC_LABEL_W, "Miss", ic_miss,
                  ic_total > 0 ? 100.0 * ic_miss / ic_total : 0.0);
-    trace_printf("  %-25s : %.2f%%\n",        "Hit Rate", hit_rate);
+    trace_printf("  %-*s : %.2f%%\n",        IC_LABEL_W, "Hit Rate", hit_rate);
 
     // 按取指地址所属的存储器类型细分（地址区间参考 ysyxsoclinker.ld）
     trace_printf("\nptrace:ICache 按存储器类型统计 (总访问 %ld 次):\n", ic_total);
@@ -301,12 +304,36 @@ int sim_exec(int turns){
       uint64_t m_hit   = ptrace.get_icache_mem_hit_cnt(t);
       uint64_t m_miss  = ptrace.get_icache_mem_miss_cnt(t);
       uint64_t m_total = m_hit + m_miss;
-      trace_printf("  %-6s (%-23s) : 访问 %ld (%.2f%%)  命中 %ld  缺失 %ld  命中率 %.2f%%\n",
-                   PTRACE::icache_mem_type_name(t), mem_range[t], m_total,
+
+      // 将类型名与地址范围拼成一个字段，放在冒号前
+      char label[64];
+      snprintf(label, sizeof(label), "%s %s",
+               PTRACE::icache_mem_type_name(t), mem_range[t]);
+
+      trace_printf("  %-*s : 访问 %ld (%.2f%%)  命中 %ld  缺失 %ld  命中率 %.2f%%\n",
+                   IC_LABEL_W, label, m_total,
                    ic_total > 0 ? 100.0 * m_total / ic_total : 0.0,
                    m_hit, m_miss,
                    m_total > 0 ? 100.0 * m_hit / m_total : 0.0);
     }
+
+    // 访问时间与缺失代价（周期数取自 icache.v 的计时逻辑）
+    double avg_hit   = ptrace.get_icache_avg_hit_time();
+    double avg_miss  = ptrace.get_icache_avg_miss_time();
+    double penalty   = ptrace.get_icache_avg_miss_penalty();
+    double miss_rate = ic_total > 0 ? (double)ic_miss / ic_total : 0.0;
+    double amat      = ptrace.get_icache_amat();
+
+    trace_printf("\nptrace:ICache 访问时间与缺失代价:\n");
+    trace_printf("  %-*s : %.2f 周期  (命中总周期 %ld)\n",
+                 IC_LABEL_W, "Avg access time", avg_hit, ptrace.get_icache_hit_cycle_sum());
+    trace_printf("  %-*s : %.2f 周期  (缺失总周期 %ld)\n",
+                 IC_LABEL_W, "Avg miss time", avg_miss, ptrace.get_icache_miss_cycle_sum());
+    trace_printf("  %-*s : %.2f 周期  (缺失耗时 - 访问时间)\n",
+                 IC_LABEL_W, "Avg miss penalty", penalty);
+    trace_printf("  %-*s : %.4f\n", IC_LABEL_W, "Miss rate", miss_rate);
+    trace_printf("  %-*s : %.2f 周期  (= %.2f + %.4f x %.2f)\n",
+                 IC_LABEL_W, "AMAT", amat, avg_hit, miss_rate, penalty);
   }
 
   // ======== IDU 指令类型统计 ========

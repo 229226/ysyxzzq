@@ -165,6 +165,40 @@ assign io_master_rready = 1;
         end
     end
 
+    // ========== 访问时间与缺失代价 ==========
+    // 一次访问的时间按 IFU 拉高 addr_valid 的持续周期算：从拉高那拍数到拉低那拍，
+    // 再减 1。减掉的是拉高那一拍——那只是 IFU 把请求递过来，cache 还没开始干活。
+    // 命中/缺失分别累加，软件端据此算平均访问时间和平均缺失代价。
+    import "DPI-C" function void icache_hit_cycle(int cycles);
+    import "DPI-C" function void icache_miss_cycle(int cycles);
+
+    reg [31:0] valid_cycle;     // 这一轮 addr_valid 已经拉高了几拍
+    reg        addr_valid_d;    // 上一拍的 addr_valid，用来找下降沿
+    reg        curr_hit;        // 本次是否命中（命中与否只在 ST_SEARCH 有效，锁存下来）
+
+    always @(posedge clk) begin
+        if(rst) begin
+            valid_cycle  <= 0;
+            addr_valid_d <= 0;
+            curr_hit     <= 0;
+        end
+        else begin
+            addr_valid_d <= addr_valid;
+
+            if(addr_valid) valid_cycle <= valid_cycle + 1;
+
+            // 命中与否只在 ST_SEARCH 那拍有效，先锁存，等上报时状态早变了
+            if(icache_state == ST_SEARCH) curr_hit <= hit;
+
+            // addr_valid 拉低，本次取指结束，这时候 valid_cycle 就是总拍数
+            if(addr_valid_d && !addr_valid) begin
+                if(curr_hit) icache_hit_cycle(valid_cycle);
+                else         icache_miss_cycle(valid_cycle);
+                valid_cycle <= 0;
+            end
+        end
+    end
+
 `endif
 
 endmodule

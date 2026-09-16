@@ -81,6 +81,9 @@ private:
     // 按存储器类型分开的 ICache 统计
     uint64_t icache_mem_hit_cnt[ICACHE_MEM_TYPE_NUM];
     uint64_t icache_mem_miss_cnt[ICACHE_MEM_TYPE_NUM];
+    // 命中/缺失各自花掉的周期总数，用来算平均访问时间和平均缺失代价
+    uint64_t icache_hit_cycle_sum;
+    uint64_t icache_miss_cycle_sum;
 
 public:
     PTRACE();
@@ -139,6 +142,8 @@ public:
 
     // ICache
     void icache_access_inc(int mem_type, int is_hit);
+    void icache_hit_cycle_inc(int cycles);
+    void icache_miss_cycle_inc(int cycles);
 
     // Getter 方法（供 sim.cpp 打印）
     uint64_t get_IFU_wait_start_cyc() const { return IFU_wait_start_cyc; }
@@ -180,6 +185,18 @@ public:
     uint64_t get_icache_mem_miss_cnt(int type) const;
     // 存储器类型名称，type 越界返回 "other"
     static const char* icache_mem_type_name(int type);
+
+    // ICache 访问时间与缺失代价
+    uint64_t get_icache_hit_cycle_sum()  const { return icache_hit_cycle_sum; }
+    uint64_t get_icache_miss_cycle_sum() const { return icache_miss_cycle_sum; }
+    // 平均取指时间（命中时的平均周期数），也就是常说的访问时间
+    double get_icache_avg_hit_time() const;
+    // 缺失时的平均周期数
+    double get_icache_avg_miss_time() const;
+    // 平均缺失代价 = 缺失时的平均周期 - 平均访问时间
+    double get_icache_avg_miss_penalty() const;
+    // AMAT = 平均访问时间 + 缺失率 × 平均缺失代价
+    double get_icache_amat() const;
 
     // 指令周期统计
     uint64_t get_total_U_cyc()     const { return total_U_cyc; }
