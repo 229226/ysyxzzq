@@ -50,7 +50,7 @@ void LSU_update_output_w()   { ptrace.LSU_update_output_w_inc(); }
 void LSU_wait_WBU()          { ptrace.LSU_wait_WBU_inc(); }
 
 // ICache
-void icache_access(int mem_type, int is_hit) { ptrace.icache_access_inc(mem_type, is_hit); }
+void icache_access(int addr, int is_hit) { ptrace.icache_access_inc((uint32_t)addr, is_hit); }
 void icache_hit_cycle(int cycles)  { ptrace.icache_hit_cycle_inc(cycles); }
 void icache_miss_cycle(int cycles) { ptrace.icache_miss_cycle_inc(cycles); }
 
@@ -112,7 +112,7 @@ PTRACE::PTRACE() {
     icache_miss_cnt = 0;
     icache_hit_cycle_sum = 0;
     icache_miss_cycle_sum = 0;
-    for (int i = 0; i < ICACHE_MEM_TYPE_NUM; i++) {
+    for (int i = 0; i < MEM_TYPE_NUM; i++) {
         icache_mem_hit_cnt[i] = 0;
         icache_mem_miss_cnt[i] = 0;
     }
@@ -205,9 +205,8 @@ void PTRACE::LSU_wait_write_inc()       { LSU_wait_write_cyc++; }
 void PTRACE::LSU_update_output_w_inc()  { LSU_update_output_w_cnt++; }
 void PTRACE::LSU_wait_WBU_inc()         { LSU_wait_WBU_cyc++; }
 
-void PTRACE::icache_access_inc(int mem_type, int is_hit) {
-    if (mem_type < 0 || mem_type >= ICACHE_MEM_TYPE_NUM)
-        mem_type = ICACHE_MEM_OTHER;
+void PTRACE::icache_access_inc(uint32_t addr, int is_hit) {
+    const int mem_type = (int)mem_type_of(addr);
 
     if (is_hit) {
         icache_hit_cnt++;
@@ -245,22 +244,11 @@ double PTRACE::get_icache_amat() const {
 }
 
 uint64_t PTRACE::get_icache_mem_hit_cnt(int type) const {
-    if (type < 0 || type >= ICACHE_MEM_TYPE_NUM) return 0;
+    if (type < 0 || type >= MEM_TYPE_NUM) return 0;
     return icache_mem_hit_cnt[type];
 }
 
 uint64_t PTRACE::get_icache_mem_miss_cnt(int type) const {
-    if (type < 0 || type >= ICACHE_MEM_TYPE_NUM) return 0;
+    if (type < 0 || type >= MEM_TYPE_NUM) return 0;
     return icache_mem_miss_cnt[type];
-}
-
-const char* PTRACE::icache_mem_type_name(int type) {
-    switch (type) {
-        case ICACHE_MEM_FLASH: return "flash";
-        case ICACHE_MEM_MROM:  return "mrom";
-        case ICACHE_MEM_SDRAM: return "sdram";
-        case ICACHE_MEM_PSRAM: return "psram";
-        case ICACHE_MEM_SRAM:  return "sram";
-        default:               return "other";
-    }
 }

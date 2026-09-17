@@ -3,20 +3,9 @@
 
 #include <cstdint>
 
-class PTRACE {
-public:
-    // ICache 取指地址所属的存储器类型（编码与 icache.v 中的 MEM_* localparam 一致）
-    // 地址区间参考 abstract-machine/scripts/ysyxsoclinker.ld
-    enum ICacheMemType {
-        ICACHE_MEM_FLASH = 0,
-        ICACHE_MEM_MROM,
-        ICACHE_MEM_SDRAM,
-        ICACHE_MEM_PSRAM,
-        ICACHE_MEM_SRAM,
-        ICACHE_MEM_OTHER,
-        ICACHE_MEM_TYPE_NUM
-    };
+#include "mem.hpp"   // MemType / MEM_TYPE_NUM / mem_type_of()
 
+class PTRACE {
 private:
     uint64_t clock;
     uint64_t instr;
@@ -78,9 +67,9 @@ private:
     // ICache 统计
     uint64_t icache_hit_cnt;
     uint64_t icache_miss_cnt;
-    // 按存储器类型分开的 ICache 统计
-    uint64_t icache_mem_hit_cnt[ICACHE_MEM_TYPE_NUM];
-    uint64_t icache_mem_miss_cnt[ICACHE_MEM_TYPE_NUM];
+    // 按存储器类型分开的 ICache 统计（类型由 mem_type_of() 给出）
+    uint64_t icache_mem_hit_cnt[MEM_TYPE_NUM];
+    uint64_t icache_mem_miss_cnt[MEM_TYPE_NUM];
     // 命中/缺失各自花掉的周期总数，用来算平均访问时间和平均缺失代价
     uint64_t icache_hit_cycle_sum;
     uint64_t icache_miss_cycle_sum;
@@ -141,7 +130,8 @@ public:
     void LSU_wait_WBU_inc();
 
     // ICache
-    void icache_access_inc(int mem_type, int is_hit);
+    // addr 是取指地址，存储器类型在这里调 mem_type_of() 判断
+    void icache_access_inc(uint32_t addr, int is_hit);
     void icache_hit_cycle_inc(int cycles);
     void icache_miss_cycle_inc(int cycles);
 
@@ -181,10 +171,9 @@ public:
     // ICache getter
     uint64_t get_icache_hit_cnt()  const { return icache_hit_cnt; }
     uint64_t get_icache_miss_cnt() const { return icache_miss_cnt; }
+    // type 取值见 mem.hpp 的 MemType；越界返回 0
     uint64_t get_icache_mem_hit_cnt(int type) const;
     uint64_t get_icache_mem_miss_cnt(int type) const;
-    // 存储器类型名称，type 越界返回 "other"
-    static const char* icache_mem_type_name(int type);
 
     // ICache 访问时间与缺失代价
     uint64_t get_icache_hit_cycle_sum()  const { return icache_hit_cycle_sum; }

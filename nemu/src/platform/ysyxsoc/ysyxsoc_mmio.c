@@ -6,6 +6,7 @@
 #include <platform/ysyxsoc/ysyxsoc_sdram.h>
 #include <platform/ysyxsoc/ysyxsoc_uart.h>
 #include <platform/ysyxsoc/ysyxsoc_clint.h>
+#include <isa.h>
 
 static YSYXSOC_MMIO ysyx_mmio_list[YSYX_MMIO_MNUM];
 static int ysyxsoc_mmio_num = 0;
@@ -66,6 +67,13 @@ void ysyxsoc_write(paddr_t addr, int len, word_t data){
 }
 
 void ysyxsoc_mmio_init(){
+    // 让 guest 用 csrr 0xF11/0xF12 读到 ysyx 的标识，AM 的 trm.c 会把它打印出来。
+    // cpu.csr[] 就是那个 4096 项的全局 CSR 数组，直接写即可。
+    // 时序上没问题：本函数由 init_mem() 调用，之后的 init_isa()->restart() 只重置
+    // mstatus 和 pc，不会动这两个寄存器，所以这里写的值能留到程序运行。
+    cpu.csr[0xF11] = 0x79737978;   // mvendorid，即 "ysyx" 的 ASCII
+    cpu.csr[0xF12] = 25080209;     // marchid，即学号
+
     ysyxsoc_mrom_init();
     ysyxsoc_sram_init();
     ysyxsoc_flash_init();

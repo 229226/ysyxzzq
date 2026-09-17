@@ -290,17 +290,9 @@ int sim_exec(int turns){
                  ic_total > 0 ? 100.0 * ic_miss / ic_total : 0.0);
     trace_printf("  %-*s : %.2f%%\n",        IC_LABEL_W, "Hit Rate", hit_rate);
 
-    // 按取指地址所属的存储器类型细分（地址区间参考 ysyxsoclinker.ld）
+    // 按取指地址所属的存储器类型细分（类型与区间都由 mem.hpp/mem.cpp 统一给出）
     trace_printf("\nptrace:ICache 按存储器类型统计 (总访问 %ld 次):\n", ic_total);
-    static const char* const mem_range[PTRACE::ICACHE_MEM_TYPE_NUM] = {
-        "0x30000000-0x30ffffff",
-        "0x20000000-0x20000fff",
-        "0xa0000000-0xa7ffffff",
-        "0x80000000-0x803fffff",
-        "0x0f000000-0x0f001fff",
-        "未映射",
-    };
-    for (int t = 0; t < PTRACE::ICACHE_MEM_TYPE_NUM; t++) {
+    for (int t = 0; t < MEM_TYPE_NUM; t++) {
       uint64_t m_hit   = ptrace.get_icache_mem_hit_cnt(t);
       uint64_t m_miss  = ptrace.get_icache_mem_miss_cnt(t);
       uint64_t m_total = m_hit + m_miss;
@@ -308,7 +300,7 @@ int sim_exec(int turns){
       // 将类型名与地址范围拼成一个字段，放在冒号前
       char label[64];
       snprintf(label, sizeof(label), "%s %s",
-               PTRACE::icache_mem_type_name(t), mem_range[t]);
+               mem_type_name((MemType)t), mem_type_range_str((MemType)t));
 
       trace_printf("  %-*s : 访问 %ld (%.2f%%)  命中 %ld  缺失 %ld  命中率 %.2f%%\n",
                    IC_LABEL_W, label, m_total,

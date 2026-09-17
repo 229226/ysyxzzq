@@ -35,7 +35,7 @@
 #define UART_IIR_NOINT  0x01
 
 static uint8_t uart_dll = 0, uart_dlm = 0;
-static uint8_t uart_ier = 0, uart_fcr = 0, uart_lcr = 0, uart_mcr = 0, uart_scr = 0;
+static uint8_t uart_ier = 0, uart_fcr = 0, uart_lcr = 0x3, uart_mcr = 0, uart_scr = 0;
 
 static bool uart_dlab(){
     return (uart_lcr & UART_LCR_DLAB) != 0;

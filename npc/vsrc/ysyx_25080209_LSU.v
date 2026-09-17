@@ -73,6 +73,11 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
   wire LSU_work;
   assign LSU_work = IDU_mem_ren | IDU_mem_wen;
 
+  // 访存地址所属的存储器类型由 C++ 侧的 mem_type_of() 判断（见 csrc/io/mem.cpp），
+  // 这里只把原始物理地址上报，不再自己维护一份地址表。
+  // 读用 EXU_raddr、写用 EXU_waddr；两者在顶层都接自 EXU_out，是绝对物理地址。
+  wire [31:0] LSU_mem_addr = IDU_mem_wen ? EXU_waddr : EXU_raddr;
+
   always @(posedge clk) begin
     if(rst) LSU_state <= 0;
     else    LSU_state <= nLSU_state;
@@ -424,6 +429,20 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
       else if((LSU_state == 1) && (W_fin == 1)) LSU_update_output_w();
       else if((LSU_state == 1) && (W_fin == 0) && IDU_mem_wen) LSU_wait_write();
       else if(LSU_state == 2) LSU_wait_WBU();
+    end
+  end
+
+  // ========== 访存上报（DPI-C，供 difftest 判断能否比对） ==========
+  // 每条指令进入 LSU 的那一拍上报一次：
+  //   is_mem      这一条指令是不是访存指令（LSU_work）
+  //   addr        它访问的物理地址，存储器类型由 C++ 侧 mem_type_of() 判断
+  // 状态机在 state 0 且 EXU_valid 时当拍必然离开 state 0，所以每条指令恰好上报一次。
+  // 地址是组合值，必须在这个 posedge 采样，不能放到 always @(*) 里反复上报。
+  import "DPI-C" function void lsu_access(int is_mem, int addr);
+
+  always @(posedge clk) begin
+    if(!rst && LSU_state == 0 && EXU_valid) begin
+      lsu_access({31'b0, LSU_work}, LSU_mem_addr);
     end
   end
 
