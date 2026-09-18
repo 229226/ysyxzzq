@@ -19,7 +19,6 @@ static void usage(const char *prog) {
     printf("                     越大越接近最优，0 表示不看未来、退回纯 LRU（默认 64）\n");
     printf("  -R, --reference    额外跑一个两倍窗口的参照，用来估计基准精度\n");
     printf("                     默认关（要多花约四成时间），需要看精度时再打开\n");
-    printf("  -S, --sweep        扫一组配置，输出对比表格\n");
     printf("  -h, --help         显示本帮助\n");
 }
 
@@ -43,6 +42,14 @@ static void print_report(const CacheConfig &cfg, const AnalysisResult &r) {
     print_miss("Compulsory", mb.compulsory);
     print_miss("Capacity", mb.capacity);
     print_miss("Conflict", mb.conflict);
+
+    // cache 的物理占用：数据阵列 + 每行的有效位 + 每行的 tag。
+    // 只算这两项额外开销（仿真里的 last_used 是时间戳，不对应硬件）。
+    const uint64_t total_bits = cfg.total_bits();
+    printf("\n  cache 占用 : %lu bit (%lu B) = 数据 %lu bit + 有效位 %lu bit + tag %lu bit\n",
+           (unsigned long)total_bits, (unsigned long)((total_bits + 7) / 8),
+           (unsigned long)(cfg.size * 8), (unsigned long)cfg.num_blocks(),
+           (unsigned long)(cfg.num_blocks() * cfg.tag_bits()));
 
     // 基准精度：同一份 trace 再用两倍窗口跑一个全相联，比较两个基准的缺失数。
     // 窗口越大越接近真正的 OPT 下界，所以两者差得越小，说明当前窗口越够用，
@@ -82,58 +89,9 @@ static void print_report(const CacheConfig &cfg, const AnalysisResult &r) {
     }
 }
 
-// 扫一组配置，输出对比表格，便于挑 cache 参数
-// 注意：内存是省下来了，但每个配置都要重新解压一遍 trace
-static void run_sweep(const std::string &input, const AnalyzeOptions &aopt) {
-    static const uint64_t sizes[]  = {512, 1024, 2048, 4096, 8192, 16384};
-    static const uint64_t blocks[] = {16, 32, 64};
-    static const uint64_t assocs[] = {1, 2, 4};
-
-    printf("%-9s %-8s %-7s %-9s %-9s %-11s %-10s %-10s %-8s\n",
-           "容量", "块大小", "相联度", "命中率", "缺失数",
-           "Compulsory", "Capacity", "Conflict", "耗时ms");
-
-    uint64_t unreliable = 0;
-
-    for (uint64_t sz : sizes) {
-        for (uint64_t blk : blocks) {
-            for (uint64_t asc : assocs) {
-                CacheConfig cfg;
-                cfg.size = sz;
-                cfg.block_size = blk;
-                cfg.assoc = asc;
-
-                std::string err;
-                if (!cfg.valid(err)) continue;
-
-                AnalysisResult r;
-                if (!analyze(input, cfg, aopt, r, err)) {
-                    fprintf(stderr, "分析失败: %s\n", err.c_str());
-                    return;
-                }
-                if (r.baseline_unreliable) unreliable++;
-
-                printf("%-9lu %-8lu %-7lu %8.2f%% %-9lu %-11lu %-10lu %-10lu %-8lu\n",
-                       (unsigned long)sz, (unsigned long)blk, (unsigned long)asc,
-                       r.stats.hit_rate(), (unsigned long)r.stats.misses,
-                       (unsigned long)r.miss.compulsory,
-                       (unsigned long)r.miss.capacity,
-                       (unsigned long)r.miss.conflict,
-                       (unsigned long)r.elapsed_ms);
-            }
-        }
-    }
-
-    if (unreliable > 0) {
-        printf("\n注意: 有 %lu 个配置的全相联基准缺失数反而更大，"
-               "这些行的冲突项已按 0 处理\n", (unsigned long)unreliable);
-    }
-}
-
 int main(int argc, char *argv[]) {
     std::string input;
     CacheConfig cfg;
-    bool sweep = false;
 
     static struct option long_opts[] = {
         {"input", required_argument, NULL, 'i'},
@@ -143,7 +101,6 @@ int main(int argc, char *argv[]) {
         {"opt-window", required_argument, NULL, 'K'},
         {"reference",    no_argument, NULL, 'R'},
         {"no-reference", no_argument, NULL, 'r'},
-        {"sweep", no_argument,       NULL, 'S'},
         {"help",  no_argument,       NULL, 'h'},
         {0, 0, 0, 0}
     };
@@ -151,7 +108,7 @@ int main(int argc, char *argv[]) {
     AnalyzeOptions aopt;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "i:s:b:a:K:RrSh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "i:s:b:a:K:Rrh", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'i':
             input = optarg;
@@ -181,9 +138,6 @@ int main(int argc, char *argv[]) {
         case 'r':
             aopt.reference = false;
             break;
-        case 'S':
-            sweep = true;
-            break;
         case 'h':
             usage(argv[0]);
             return 0;
@@ -200,11 +154,6 @@ int main(int argc, char *argv[]) {
     }
 
     std::string err;
-
-    if (sweep) {
-        run_sweep(input, aopt);
-        return 0;
-    }
 
     if (!cfg.valid(err)) {
         fprintf(stderr, "非法的 cache 配置: %s\n", err.c_str());

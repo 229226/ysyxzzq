@@ -32,6 +32,18 @@ bool CacheConfig::valid(std::string &err) const {
     return true;
 }
 
+uint64_t CacheConfig::tag_bits() const {
+    // 地址切成 [tag | index | offset]，tag 就是剩下的高位
+    return 32 - log2_of(block_size) - log2_of(num_sets());
+}
+
+uint64_t CacheConfig::total_bits() const {
+    const uint64_t lines = num_blocks();
+    return size * 8               // 数据阵列
+         + lines * 1              // 每行一个有效位
+         + lines * tag_bits();    // 每行一个 tag
+}
+
 std::string CacheConfig::to_string() const {
     char buf[160];
     if (assoc == 1) {

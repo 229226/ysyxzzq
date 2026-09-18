@@ -17,6 +17,12 @@ struct CacheConfig {
     uint64_t num_sets()   const { return num_blocks() / assoc; }
     bool     full_assoc() const { return assoc == num_blocks(); }
 
+    // tag 位宽：PC 是 32 位，扣掉块内偏移和组索引，和 tag_of() 切地址的方式一致
+    uint64_t tag_bits() const;
+    // cache 占用的总位数 = 数据 + 每行的有效位 + 每行的 tag。
+    // 目前只算这两项额外开销。
+    uint64_t total_bits() const;
+
     // 参数必须都是 2 的幂且能整除，否则无法用位运算切分地址
     bool valid(std::string &err) const;
     std::string to_string() const;
