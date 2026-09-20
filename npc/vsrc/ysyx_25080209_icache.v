@@ -1,10 +1,10 @@
-module ysyx_25080209_icache #(BLOCK_SIZE = 32,BLOCK_NUM = 16)(
+module ysyx_25080209_icache #(DATA_WID = 32,BLOCK_WID = 128,BLOCK_NUM = 4)(
     input clk,rst,
 
     input addr_valid,
-    input [31:0] addr_i,
+    input [DATA_WID-1:0] addr_i,
     output reg icache_ready,
-    output reg [31:0] data_o,
+    output reg [DATA_WID-1:0] data_o,
 
     // ========== AXI4 接口 ==========
     input 		io_master_awready,
@@ -37,11 +37,18 @@ module ysyx_25080209_icache #(BLOCK_SIZE = 32,BLOCK_NUM = 16)(
     input 		io_master_rlast,
     input 	[3:0] 	io_master_rid
 );
-localparam OFFSET_LEN = $clog2(BLOCK_SIZE/8);
-localparam INDEX_LEN = $clog2(BLOCK_NUM);
-localparam TAG_LEN = 32 - OFFSET_LEN - INDEX_LEN;
-//{valid[1] tag[TAG_LEN] data[BLOCK_SIZE]}
-reg [BLOCK_NUM-1:0][1+TAG_LEN+BLOCK_SIZE-1:0] icache;
+localparam TAG_WID      = 32 - OFFSET_WID - INDEX_WID;
+localparam INDEX_WID    = $clog2(BLOCK_NUM);
+localparam OFFSET_WID   = $clog2(BLOCK_WID/8);
+
+localparam DATA_ADDR_WID = $clog2(DATA_WID/8);
+localparam BDATA_OFF_WID = OFFSET_WID - DATA_ADDR_WID;
+
+localparam DATA_HEXLEN = DATA_WID/8;
+
+reg [BLOCK_NUM-1:0]                 icache_valid;
+reg [BLOCK_NUM-1:0][TAG_WID-1:0]    icache_tag;
+reg [BLOCK_NUM-1:0][BLOCK_WID-1:0]  icache_data;
 
 localparam ST_WAIT_IFU = 2'd0;
 localparam ST_SEARCH   = 2'd1;
@@ -49,19 +56,29 @@ localparam ST_WAIT_MEM = 2'd2;
 localparam ST_OUTPUT   = 2'd3;
 reg [1:0] icache_state, icache_nstate;
 
-reg [31:0] input_addr;
+reg [BDATA_OFF_WID:0] mem_count;
 
-wire [INDEX_LEN-1:0] addr_index = input_addr[INDEX_LEN+OFFSET_LEN-1:OFFSET_LEN];
-wire [TAG_LEN-1:0] addr_tag = input_addr[31:INDEX_LEN+OFFSET_LEN];
-wire icache_valid = icache[addr_index][1+TAG_LEN+BLOCK_SIZE-1];
-wire [TAG_LEN-1:0] icache_tag = icache[addr_index][TAG_LEN+BLOCK_SIZE-1:BLOCK_SIZE];
-wire [BLOCK_SIZE-1:0] icache_data = icache[addr_index][BLOCK_SIZE-1:0];
-wire hit = icache_valid && (addr_tag == icache_tag);
+reg [31:0]  input_addr;
+wire [31:0] out_faddr   = {input_addr[31:OFFSET_WID],{OFFSET_WID{1'b0}}};
+wire [31:0] out_addr    = out_faddr + mem_count*DATA_HEXLEN + DATA_HEXLEN;
 
-wire rmem_fin = io_master_rvalid && io_master_rready;
+wire [TAG_WID-1:0]      addr_tag    = input_addr[31:INDEX_WID+OFFSET_WID];
+wire [INDEX_WID-1:0]    addr_index  = input_addr[INDEX_WID+OFFSET_WID-1:OFFSET_WID];
+wire [OFFSET_WID-1:0]   addr_offset = input_addr[OFFSET_WID-1:0];
 
-// 取指地址所属的存储器类型由 C++ 侧的 mem_type_of() 判断（见 csrc/io/mem.cpp），
-// 这里只把原始物理地址上报，不再自己维护一份地址表。
+wire                    out_valid   = icache_valid[addr_index];
+wire [TAG_WID-1:0]      out_tag     = icache_tag[addr_index];
+wire [BLOCK_WID-1:0]    out_bdata   = icache_data[addr_index];
+
+wire [BDATA_OFF_WID-1:0]    bdata_off   = addr_offset[OFFSET_WID-1:DATA_ADDR_WID];
+wire [DATA_WID-1:0]         out_data    = out_bdata[bdata_off*DATA_WID+DATA_WID-1 -: DATA_WID];
+
+wire hit = out_valid && (addr_tag == out_tag);
+
+wire ar_fin     = io_master_arvalid && io_master_arready;
+wire rmem_fin   = io_master_rvalid && io_master_rready;
+wire rmem_last  = &mem_count[BDATA_OFF_WID-1:0];
+wire mem_afin   = mem_count[BDATA_OFF_WID]; 
 
 always @(posedge clk) begin
     if(rst) icache_state <= ST_WAIT_IFU;
@@ -78,7 +95,7 @@ always @(*) begin
         else icache_nstate = ST_WAIT_MEM;
     end
     ST_WAIT_MEM:begin
-        if(rmem_fin) icache_nstate = ST_OUTPUT;
+        if(mem_afin) icache_nstate = ST_OUTPUT;
         else icache_nstate = ST_WAIT_MEM;
     end
     ST_OUTPUT:begin
@@ -89,46 +106,113 @@ end
 always @(posedge clk) begin
     if(rst) begin
         input_addr <= 0;
-
-        icache_ready <= 0;
-        data_o <= 0;
-
-        io_master_araddr <= 0;
-        io_master_arvalid <= 0;
-    end
-    else begin
+    end else begin
         case(icache_state)
-        ST_WAIT_IFU:begin
-            if(addr_valid) input_addr <= addr_i;
-        end
-        ST_SEARCH:begin
-            if(hit) begin
-                icache_ready <= 1;
-                data_o <= icache_data;
-            end 
-            else begin
-                io_master_araddr <= input_addr;
-                io_master_arvalid <= 1;
-            end
-        end
+        ST_WAIT_IFU:if(addr_valid) input_addr <= addr_i;
+        ST_SEARCH:;
+        ST_WAIT_MEM:;
+        ST_OUTPUT:;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+        icache_ready <= 0;
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:if(hit) icache_ready <= 1;
+        ST_WAIT_MEM:if(mem_afin) icache_ready <= 1;
+        ST_OUTPUT:icache_ready <= 0;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+        data_o <= 0;
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:if(hit) data_o <= out_data;
+        ST_WAIT_MEM:if(mem_afin) data_o <= out_data;
+        ST_OUTPUT:;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+        io_master_araddr <= 0;
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:if(!hit) io_master_araddr <= out_faddr;
+        ST_WAIT_MEM:if(rmem_fin && !rmem_last) io_master_araddr <= out_addr;
+        ST_OUTPUT:;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+        io_master_arvalid <= 0;
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:if(!hit) io_master_arvalid <= 1;
         ST_WAIT_MEM:begin
-            if(io_master_arready) begin
-                io_master_arvalid <= 0;
-            end
-
-            if(rmem_fin) begin
-                icache[addr_index][1+TAG_LEN+BLOCK_SIZE-1] <= 1;
-                icache[addr_index][TAG_LEN+BLOCK_SIZE-1:BLOCK_SIZE] <= addr_tag;
-                icache[addr_index][BLOCK_SIZE-1:0] <= io_master_rdata;
-
-                icache_ready <= 1;
-                data_o <= io_master_rdata;
-            end
+            if(rmem_fin && !rmem_last) io_master_arvalid <= 1;
+            if(ar_fin) io_master_arvalid <= 0;
         end
-        ST_OUTPUT:begin
-            input_addr <= 0;
-            icache_ready <= 0;
-        end
+        ST_OUTPUT:;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+        mem_count <= 0;
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:;
+        ST_WAIT_MEM:begin
+            if(rmem_fin) mem_count <= mem_count + 1;
+        end 
+        ST_OUTPUT:mem_count <= 0;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:;
+        ST_WAIT_MEM:begin
+            if(rmem_fin) icache_data[addr_index][mem_count*DATA_WID+DATA_WID-1 -: DATA_WID] <= io_master_rdata;
+        end 
+        ST_OUTPUT:;
+        default:;
+        endcase
+    end
+end
+always @(posedge clk) begin
+    if(rst) begin
+    end else begin
+        case(icache_state)
+        ST_WAIT_IFU:;
+        ST_SEARCH:;
+        ST_WAIT_MEM:
+            if(mem_afin) begin
+                icache_valid[addr_index]    <= 1;
+                icache_tag[addr_index]      <= addr_tag;
+            end
+        ST_OUTPUT:;
+        default:;
         endcase
     end
 end

@@ -103,10 +103,7 @@ module ysyx_25080209_IFU #(ADDR_WID = 32, DATA_WID = 32)(
     reg addr_valid,icache_ready;
     reg [31:0] addr_i,data_o;
 
-    ysyx_25080209_icache #(
-    .BLOCK_SIZE(32),
-    .BLOCK_NUM(16)
-    ) icache (
+    ysyx_25080209_icache icache (
     .clk(clk),
     .rst(rst),
 
