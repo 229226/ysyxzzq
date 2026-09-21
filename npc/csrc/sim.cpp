@@ -7,6 +7,46 @@
 
 #include <chrono>
 #include <iostream>
+#include <cstdarg>
+#include <cstdio>
+#include <string>
+#include <vector>
+
+// ========== 性能表格 ==========
+// 除人读报告外，另写一份结构化表格到 build/perf_table.csv，供 make fill_excel
+// 直接搬进 doc/NPC性能评估结果.xlsx（脚本不再解析日志）。
+// 记录的先后顺序 = xlsx 里列的左右顺序（C→CX，跳过仿真产不出的 F 综合频率 /
+// G 综合面积），加字段请照着表头插在对应位置。
+static std::vector<std::string> g_tbl_name, g_tbl_value;
+
+// 登记一个字段。用和报告里同样的格式串，保证表格与报告的数字逐位一致。
+static void table_add(const char *name, const char *fmt, ...) {
+    char buf[64];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    g_tbl_name.push_back(name);
+    g_tbl_value.push_back(buf);
+}
+
+// 写成两行：第一行字段名，第二行对应的值
+static void table_write(const char *path) {
+    FILE *fp = fopen(path, "w");
+    if (fp == NULL) {
+        trace_printf("警告: 打不开 %s，性能表格没写出来\n", path);
+        return;
+    }
+    for (size_t i = 0; i < g_tbl_name.size(); i++)
+        fprintf(fp, "%s%s", i ? "," : "", g_tbl_name[i].c_str());
+    fputc('\n', fp);
+    for (size_t i = 0; i < g_tbl_value.size(); i++)
+        fprintf(fp, "%s%s", i ? "," : "", g_tbl_value[i].c_str());
+    fputc('\n', fp);
+    fclose(fp);
+    trace_printf("ptrace:性能表格已写入 %s（%lu 个字段）\n",
+                 path, (unsigned long)g_tbl_name.size());
+}
 
 static TOP_NAME *top = NULL;
 static VerilatedContext* contextp = NULL;
@@ -153,7 +193,7 @@ int sim_exec(int turns){
   trace_printf("\n[sim_exec] 总执行时间: %lld 分钟, %lld 秒, %lld 毫秒 (总计 %lld ms)\n",
          minutes, seconds, millis, (long long)total_ms);
 
-  ptrace.set_frequency(735075000UL);
+  ptrace.set_frequency(745955000UL);
 
   // ======== 基础统计 ========
   uint64_t total_clock = ptrace.get_clock() - 19; // 减去复位周期
@@ -410,6 +450,162 @@ int sim_exec(int turns){
              "Write", write_ops, ptrace.get_LSU_wait_write_cyc(), avg_write);
   } else {
       trace_printf("  %-30s : 无\n", "Write");
+  }
+
+  // ======== 性能表格 ========
+  // 按 npc/doc/NPC性能评估结果.xlsx 的列序登记 102 个字段，从 A 列起一一对齐。
+  // 其中 A(commit)/B(说明)/F(综合频率)/G(综合面积) 仿真产不出来，占四个空位，
+  // 复制脚本因此可以纯按位置搬，不用管从第几列开始。
+  // 取值口径与上面报告里的原式逐项对应，只是这里为了不打扰报告代码，
+  // 把几个原本在 {} 块内的模块总数就地重算了一遍。
+  {
+    g_tbl_name.clear();
+    g_tbl_value.clear();
+
+    auto pct = [](uint64_t cyc, uint64_t total) {
+      return total ? 100.0 * cyc / total : 0.0;
+    };
+
+    // ---- A,B 元信息 ----
+    // commit 和说明是人工填的，这里占两个空位，好让表格从 A 列起就和 xlsx 对齐。
+    table_add("commit", "%s", "");
+    table_add("desc",   "%s", "");
+
+    // ---- C,D,E 基础 ----
+    table_add("sim_cycles",  "%lu", (unsigned long)total_clock);
+    table_add("instr_count", "%lu", (unsigned long)instr_cnt);
+    table_add("ipc",         "%.4f", ptrace.get_ipc());
+    // F 综合频率 / G 综合面积 仿真产不出来，占两个空位，
+    // 这样表格的列序与 xlsx 的 C..CX 一一对齐，复制脚本才能纯按位置搬。
+    table_add("freq", "%s", "");
+    table_add("area", "%s", "");
+
+    // ---- H..Q IFU（xlsx 把「取指次数」提到了这段最左边） ----
+    uint64_t ifu_ws  = ptrace.get_IFU_wait_start_cyc();
+    uint64_t ifu_wm  = ptrace.get_IFU_wait_mem_cyc();
+    uint64_t ifu_upd = ptrace.get_IFU_update_output_cnt();
+    uint64_t ifu_wi  = ptrace.get_IFU_wait_IDU_cyc();
+    uint64_t ifu_tot = ifu_ws + ifu_wm + ifu_upd + ifu_wi;
+    table_add("ifu_fetch_count",      "%lu",  (unsigned long)ifu_upd);
+    table_add("ifu_wait_start_cyc",   "%lu",  (unsigned long)ifu_ws);
+    table_add("ifu_wait_start_pct",   "%.2f", pct(ifu_ws, ifu_tot));
+    table_add("ifu_wait_mem_cyc",     "%lu",  (unsigned long)ifu_wm);
+    table_add("ifu_wait_mem_pct",     "%.2f", pct(ifu_wm, ifu_tot));
+    table_add("ifu_update_output_cyc","%lu",  (unsigned long)ifu_upd);
+    table_add("ifu_update_output_pct","%.2f", pct(ifu_upd, ifu_tot));
+    table_add("ifu_wait_idu_cyc",     "%lu",  (unsigned long)ifu_wi);
+    table_add("ifu_wait_idu_pct",     "%.2f", pct(ifu_wi, ifu_tot));
+    table_add("ifu_total_cyc",        "%lu",  (unsigned long)ifu_tot);
+
+    // ---- R..Y IDU ----
+    uint64_t idu_wi  = ptrace.get_IDU_wait_IFU_cyc();
+    uint64_t idu_upd = ptrace.get_IDU_update_output_cnt();
+    uint64_t idu_we  = ptrace.get_IDU_wait_EXU_cyc();
+    uint64_t idu_tot = idu_wi + idu_upd + idu_we;
+    table_add("idu_decode_count",      "%lu",  (unsigned long)idu_upd);
+    table_add("idu_wait_ifu_cyc",      "%lu",  (unsigned long)idu_wi);
+    table_add("idu_wait_ifu_pct",      "%.2f", pct(idu_wi, idu_tot));
+    table_add("idu_update_output_cyc", "%lu",  (unsigned long)idu_upd);
+    table_add("idu_update_output_pct", "%.2f", pct(idu_upd, idu_tot));
+    table_add("idu_wait_exu_cyc",      "%lu",  (unsigned long)idu_we);
+    table_add("idu_wait_exu_pct",      "%.2f", pct(idu_we, idu_tot));
+    table_add("idu_total_cyc",         "%lu",  (unsigned long)idu_tot);
+
+    // ---- Z..AG EXU ----
+    uint64_t exu_wi  = ptrace.get_EXU_wait_IDU_cyc();
+    uint64_t exu_upd = ptrace.get_EXU_update_output_cnt();
+    uint64_t exu_wl  = ptrace.get_EXU_wait_LSU_cyc();
+    uint64_t exu_tot = exu_wi + exu_upd + exu_wl;
+    table_add("exu_calc_count",        "%lu",  (unsigned long)exu_upd);
+    table_add("exu_wait_idu_cyc",      "%lu",  (unsigned long)exu_wi);
+    table_add("exu_wait_idu_pct",      "%.2f", pct(exu_wi, exu_tot));
+    table_add("exu_update_output_cyc", "%lu",  (unsigned long)exu_upd);
+    table_add("exu_update_output_pct", "%.2f", pct(exu_upd, exu_tot));
+    table_add("exu_wait_lsu_cyc",      "%lu",  (unsigned long)exu_wl);
+    table_add("exu_wait_lsu_pct",      "%.2f", pct(exu_wl, exu_tot));
+    table_add("exu_total_cyc",         "%lu",  (unsigned long)exu_tot);
+
+    // ---- AH..AV LSU（读/写次数同样被提到了段首） ----
+    uint64_t lsu_we  = ptrace.get_LSU_wait_EXU_cyc();
+    uint64_t lsu_wr  = ptrace.get_LSU_wait_read_cyc();
+    uint64_t lsu_ur  = ptrace.get_LSU_update_output_r_cnt();
+    uint64_t lsu_ww  = ptrace.get_LSU_wait_write_cyc();
+    uint64_t lsu_uw  = ptrace.get_LSU_update_output_w_cnt();
+    uint64_t lsu_wb  = ptrace.get_LSU_wait_WBU_cyc();
+    uint64_t lsu_tot = lsu_we + lsu_wr + lsu_ur + lsu_ww + lsu_uw + lsu_wb;
+    table_add("lsu_read_count",         "%lu",  (unsigned long)lsu_ur);
+    table_add("lsu_write_count",        "%lu",  (unsigned long)lsu_uw);
+    table_add("lsu_wait_exu_cyc",       "%lu",  (unsigned long)lsu_we);
+    table_add("lsu_wait_exu_pct",       "%.2f", pct(lsu_we, lsu_tot));
+    table_add("lsu_wait_read_cyc",      "%lu",  (unsigned long)lsu_wr);
+    table_add("lsu_wait_read_pct",      "%.2f", pct(lsu_wr, lsu_tot));
+    table_add("lsu_update_output_r_cyc","%lu",  (unsigned long)lsu_ur);
+    table_add("lsu_update_output_r_pct","%.2f", pct(lsu_ur, lsu_tot));
+    table_add("lsu_wait_write_cyc",     "%lu",  (unsigned long)lsu_ww);
+    table_add("lsu_wait_write_pct",     "%.2f", pct(lsu_ww, lsu_tot));
+    table_add("lsu_update_output_w_cyc","%lu",  (unsigned long)lsu_uw);
+    table_add("lsu_update_output_w_pct","%.2f", pct(lsu_uw, lsu_tot));
+    table_add("lsu_wait_wbu_cyc",       "%lu",  (unsigned long)lsu_wb);
+    table_add("lsu_wait_wbu_pct",       "%.2f", pct(lsu_wb, lsu_tot));
+    table_add("lsu_total_cyc",          "%lu",  (unsigned long)lsu_tot);
+
+    // ---- AW..BB WBU ----
+    uint64_t wbu_wl  = ptrace.get_WBU_wait_LSU_cyc();
+    uint64_t wbu_wr  = ptrace.get_WBU_write_reg_cnt();
+    uint64_t wbu_tot = wbu_wl + wbu_wr;
+    table_add("wbu_write_count",      "%lu",  (unsigned long)wbu_wr);
+    table_add("wbu_wait_lsu_cyc",     "%lu",  (unsigned long)wbu_wl);
+    table_add("wbu_wait_lsu_pct",     "%.2f", pct(wbu_wl, wbu_tot));
+    table_add("wbu_write_reg_cyc",    "%lu",  (unsigned long)wbu_wr);
+    table_add("wbu_write_reg_pct",    "%.2f", pct(wbu_wr, wbu_tot));
+    table_add("wbu_total_cyc",        "%lu",  (unsigned long)wbu_tot);
+
+    // ---- BC..BK IDU 指令类型计数 ----
+    table_add("idu_U",     "%lu", (unsigned long)nU);
+    table_add("idu_J",     "%lu", (unsigned long)nJ);
+    table_add("idu_I",     "%lu", (unsigned long)nI);
+    table_add("idu_Ical",  "%lu", (unsigned long)nIcal);
+    table_add("idu_B",     "%lu", (unsigned long)nB);
+    table_add("idu_Rcal",  "%lu", (unsigned long)nRcal);
+    table_add("idu_LOAD",  "%lu", (unsigned long)nLoad);
+    table_add("idu_STORE", "%lu", (unsigned long)nStore);
+    table_add("idu_CSR",   "%lu", (unsigned long)nCSR);
+
+    // ---- BL..CP 各类指令的完整周期 / 占比 / 平均 ----
+    table_add("total_ins_cyc", "%lu", (unsigned long)total_ins_cyc);
+    auto add_ins = [&](const char *p, uint64_t cyc, uint64_t cnt) {
+      char nm[32];
+      snprintf(nm, sizeof(nm), "%s_cyc", p); table_add(nm, "%lu",  (unsigned long)cyc);
+      snprintf(nm, sizeof(nm), "%s_pct", p); table_add(nm, "%.2f", pct(cyc, total_ins_cyc));
+      snprintf(nm, sizeof(nm), "%s_avg", p); table_add(nm, "%.2f", cnt ? (double)cyc / cnt : 0.0);
+    };
+    add_ins("u",     tU,     nU);
+    add_ins("j",     tJ,     nJ);
+    add_ins("i",     tI,     nI);
+    add_ins("ical",  tIcal,  nIcal);
+    add_ins("b",     tB,     nB);
+    add_ins("rcal",  tRcal,  nRcal);
+    add_ins("load",  tLoad,  nLoad);
+    add_ins("store", tStore, nStore);
+    add_ins("csr",   tCSR,   nCSR);
+    add_ins("other", tOther, nOther);
+
+    // ---- CQ,CR LSU 访存平均延迟 ----
+    table_add("lsu_read_avg",  "%.2f", read_ops  ? (double)ptrace.get_LSU_wait_read_cyc()  / read_ops  : 0.0);
+    table_add("lsu_write_avg", "%.2f", write_ops ? (double)ptrace.get_LSU_wait_write_cyc() / write_ops : 0.0);
+
+    // ---- CS..CX cache（这 6 列以前靠手填，现在一并输出） ----
+    uint64_t c_hit   = ptrace.get_icache_hit_cnt();
+    uint64_t c_miss  = ptrace.get_icache_miss_cnt();
+    uint64_t c_total = c_hit + c_miss;
+    table_add("cache_hit",              "%lu",  (unsigned long)c_hit);
+    table_add("cache_miss",             "%lu",  (unsigned long)c_miss);
+    table_add("cache_hit_rate",         "%.2f", pct(c_hit, c_total));
+    table_add("cache_avg_access",       "%.2f", ptrace.get_icache_avg_hit_time());
+    table_add("cache_avg_miss_penalty", "%.2f", ptrace.get_icache_avg_miss_penalty());
+    table_add("cache_amat",             "%.2f", ptrace.get_icache_amat());
+
+    table_write("./build/perf_table.csv");
   }
 
   #ifdef ITRACE_CONFIG

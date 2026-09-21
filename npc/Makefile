@@ -103,7 +103,9 @@ YOSYS_PROJ_DIR ?= $(abspath $(NPC_HOME)/yosys)
 
 FILL_EXCEL_SCRIPT ?= $(NPC_PATH)/tools/fill_excel.py
 EXCEL_FILE ?= $(abspath $(NPC_PATH)/doc/NPC性能评估结果.xlsx)
-SIM_LOG = $(BUILD_PATH)/npc.log
+# 仿真产出的性能表格（sim.cpp 在报告末尾写），fill_excel 的数据源。
+# npc.log 仍然照写，只是不再被脚本解析。
+PERF_TABLE = $(BUILD_PATH)/perf_table.csv
 
 IFU_FILE := $(VSRC_PATH)/ysyx_25080209_IFU.v
 update-boot-pc:
@@ -144,7 +146,11 @@ fill_excel:
 		echo "Error: script $(FILL_EXCEL_SCRIPT) not found."; \
 		exit 1; \
 	fi
-	@python3 $(FILL_EXCEL_SCRIPT) $(SIM_LOG) $(EXCEL_FILE)
+	@if [ ! -f $(PERF_TABLE) ]; then \
+		echo "Error: 找不到 $(PERF_TABLE)，先跑一次仿真（make sim）生成它。"; \
+		exit 1; \
+	fi
+	@python3 $(FILL_EXCEL_SCRIPT) $(PERF_TABLE) $(EXCEL_FILE)
 	@echo "Excel updated at $(EXCEL_FILE)"
 
 #进行perf仿真时需要开启NPC的TRACE功能以输出数据
