@@ -43,8 +43,8 @@ DEFAULT_OUTBASE = SCRIPT_DIR.parent.parent / "result" / "cachesim"
 
 # 与内置 run_sweep() 的网格一致（main.cpp:88-90），脚本可以直接当作它的并行替代
 DEFAULT_SIZES = "32:128"
-DEFAULT_BLOCKS = "4:16"
-DEFAULT_ASSOCS = "1:4"
+DEFAULT_BLOCKS = "4:128"
+DEFAULT_ASSOCS = "1:32"
 DEFAULT_WINDOWS = "256"
 
 

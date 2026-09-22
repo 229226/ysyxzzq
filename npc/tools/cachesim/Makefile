@@ -11,7 +11,7 @@ TARGET = $(BUILD)/cachesim
 # 默认按 NPC icache 的配置跑：块大小 32 位(4B)、16 个块、直接映射，共 64B
 TRACE  ?= ../../pctrace.bin.bz2
 SIZE   ?= 64
-BLOCK  ?= 4
+BLOCK  ?= 64
 ASSOC  ?= 1
 WINDOW ?= 256
 REF    ?=
