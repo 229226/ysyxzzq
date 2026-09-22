@@ -193,7 +193,7 @@ int sim_exec(int turns){
   trace_printf("\n[sim_exec] 总执行时间: %lld 分钟, %lld 秒, %lld 毫秒 (总计 %lld ms)\n",
          minutes, seconds, millis, (long long)total_ms);
 
-  ptrace.set_frequency(743124000UL);
+  ptrace.set_frequency(743056000UL);
 
   // ======== 基础统计 ========
   uint64_t total_clock = ptrace.get_clock() - 19; // 减去复位周期

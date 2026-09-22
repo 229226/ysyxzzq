@@ -102,9 +102,9 @@ reg m0_valid,m1_valid,m0_fin,m1_fin;
 assign m0_req = io_master0_awvalid || io_master0_wvalid || io_master0_arvalid;
 assign m1_req = io_master1_awvalid || io_master1_wvalid || io_master1_arvalid;
 assign m0_fin = (io_master0_bvalid&&io_master0_bready) || 
-                (io_master0_rvalid&&io_master0_rready);
+                (io_master0_rvalid&&io_master0_rready&&io_master0_rlast);
 assign m1_fin = (io_master1_bvalid&&io_master1_bready) || 
-                (io_master1_rvalid&&io_master1_rready);
+                (io_master1_rvalid&&io_master1_rready&&io_master1_rlast);
 
 // reg m0_AW_fin,m0_W_fin,m0_B_fin,m0_AR_fin,m0_R_fin,
 //     m1_AW_fin,m1_W_fin,m1_B_fin,m1_AR_fin,m1_R_fin;
