@@ -42,10 +42,16 @@ DEFAULT_TRACE = SCRIPT_DIR.parent.parent / "pctrace.bin.bz2"
 DEFAULT_OUTBASE = SCRIPT_DIR.parent.parent / "result" / "cachesim"
 
 # 与内置 run_sweep() 的网格一致（main.cpp:88-90），脚本可以直接当作它的并行替代
-DEFAULT_SIZES = "32:128"
-DEFAULT_BLOCKS = "4:128"
-DEFAULT_ASSOCS = "1:32"
+DEFAULT_SIZES = "32:256"
+DEFAULT_BLOCKS = "4:256"
+DEFAULT_ASSOCS = "1:64"
 DEFAULT_WINDOWS = "256"
+
+# 访存代价模型（单位：周期），跟上面几个网格默认值一样，改这里就能改默认行为。
+# 总线按 4B 一次突发：缺失代价 = BURST_BASE + (块大小/4 - 1) x BURST_INC
+DEFAULT_HIT_TIME   = 3    # 命中时的访问代价
+DEFAULT_BURST_BASE = 49.78   # 一次 4B 突发传输的代价
+DEFAULT_BURST_INC  = 14.37    # 每多传 4B 增加的代价
 
 
 # ========== 取值解析 ==========
@@ -168,13 +174,21 @@ RE_ELAPSED = re.compile(r"^  耗时\s*:\s*(\d+)\s*ms", re.M)
 RE_UNRELIABLE = re.compile(r"^  注意:\s*全相联基准缺失", re.M)
 # "  cache 占用 : 944 bit (118 B) = 数据 512 bit + 有效位 16 bit + tag 416 bit"
 RE_CACHE_SPACE = re.compile(r"^  cache 占用\s*:\s*(\d+)\s*bit\s*\((\d+)\s*B\)", re.M)
+# 访存代价模型那几行：
+#   "    块大小              : 64 B，即 16 次 4B 传输"
+#   "    缺失代价            : 10 + (16 - 1) x 2 = 40.00"
+#   "    AMAT                : 1.00 + 0.2760 x 40.00 = 12.04 周期"
+RE_TRANSFERS = re.compile(r"^    块大小\s*:\s*\d+\s*B，即\s*(\d+)\s*次 4B 传输", re.M)
+RE_MISS_PENALTY = re.compile(r"^    缺失代价\s*:.*=\s*([\d.]+)", re.M)
+RE_AMAT = re.compile(r"^    AMAT\s*:.*=\s*([\d.]+)", re.M)
 
 
 def parse_report(text):
     """从单配置模式的报告里取数。字段不全就返回 None，表示这份输出不可信。
 
-    「cache 占用」行也要求存在：它是 cachesim 报告里固定会打的一行，缺了
-    说明用的是没重新编译的旧二进制，与其静默按 0 记，不如在这里拦住。
+    「cache 占用」和「缺失代价 / AMAT」两行也要求存在：它们都是 cachesim 报告里
+    固定会打的行，缺了说明用的是没重新编译的旧二进制，与其静默按 0 记，不如
+    在这里拦住。
     """
     def grab(rx):
         m = rx.search(text)
@@ -182,7 +196,10 @@ def parse_report(text):
 
     accesses, misses, hits = grab(RE_ACCESSES), grab(RE_MISSES), grab(RE_HITS)
     space = RE_CACHE_SPACE.search(text)
-    if accesses is None or misses is None or hits is None or space is None:
+    penalty = RE_MISS_PENALTY.search(text)
+    amat = RE_AMAT.search(text)
+    if accesses is None or misses is None or hits is None or space is None \
+            or penalty is None or amat is None:
         return None
 
     return {
@@ -195,6 +212,9 @@ def parse_report(text):
         "conflict": grab(RE_CONFLICT) or 0,
         "total_bits": int(space.group(1)),
         "total_bytes": int(space.group(2)),
+        "transfers": grab(RE_TRANSFERS) or 0,
+        "miss_penalty": float(penalty.group(1)),
+        "amat": float(amat.group(1)),
         "elapsed_ms": grab(RE_ELAPSED),
         "unreliable": bool(RE_UNRELIABLE.search(text)),
     }
@@ -219,7 +239,7 @@ class Runner:
         for proc in procs:
             _kill_group(proc)
 
-    def run_one(self, combo, cachesim, trace, raw_dir, reference):
+    def run_one(self, combo, cachesim, trace, raw_dir, reference, cost_args):
         size, block, assoc, window = combo
         tag = combo_tag(size, block, assoc, window)
 
@@ -227,6 +247,7 @@ class Runner:
                "-s", str(size), "-b", str(block), "-a", str(assoc), "-K", str(window)]
         if reference:
             cmd.append("-R")
+        cmd += cost_args
 
         # encoding 必须显式给：text=True 只按 locale 解码，LC_ALL=C 时
         # Python 会按 ASCII 解，读到报告里的中文直接 UnicodeDecodeError。
@@ -290,7 +311,8 @@ def pad(s, width, align="<"):
 COLUMNS = [
     ("容量", 9, "<"), ("块大小", 8, "<"), ("相联度", 7, "<"), ("窗口", 7, "<"),
     ("占用B", 9, ">"), ("命中率", 9, ">"), ("缺失数", 9, ">"), ("Compulsory", 11, ">"),
-    ("Capacity", 10, ">"), ("Conflict", 10, ">"), ("耗时ms", 8, ">"),
+    ("Capacity", 10, ">"), ("Conflict", 10, ">"),
+    ("缺失代价", 9, ">"), ("AMAT", 8, ">"), ("耗时ms", 8, ">"),
 ]
 
 
@@ -304,13 +326,15 @@ def render_table(rows):
                   "%d" % r["total_bytes"],
                   "%.2f%%" % r["hit_rate"], "%d" % r["misses"],
                   "%d" % r["compulsory"], "%d" % r["capacity"], "%d" % r["conflict"],
+                  "%.2f" % r["miss_penalty"], "%.2f" % r["amat"],
                   "%d" % (r["elapsed_ms"] or 0)]
         lines.append(" ".join(pad(v, w, a) for v, (_, w, a) in zip(values, COLUMNS)))
     return "\n".join(lines)
 
 
 CSV_HEADER = ["容量", "块大小", "相联度", "窗口", "占用bit", "占用B", "取指次数", "命中数",
-              "命中率(%)", "缺失数", "Compulsory", "Capacity", "Conflict", "耗时ms", "基准可信"]
+              "命中率(%)", "缺失数", "Compulsory", "Capacity", "Conflict",
+              "4B传输次数", "缺失代价(周期)", "AMAT(周期)", "耗时ms", "基准可信"]
 
 
 def write_csv(path, rows):
@@ -323,6 +347,7 @@ def write_csv(path, rows):
                         r["total_bits"], r["total_bytes"],
                         r["accesses"], r["hits"], "%.4f" % r["hit_rate"], r["misses"],
                         r["compulsory"], r["capacity"], r["conflict"],
+                        r["transfers"], "%.2f" % r["miss_penalty"], "%.2f" % r["amat"],
                         r["elapsed_ms"] if r["elapsed_ms"] is not None else "",
                         "否" if r["unreliable"] else "是"])
 
@@ -384,6 +409,13 @@ def build_parser():
                    help="cachesim 可执行文件（默认 %(default)s，也可用 CACHESIM 环境变量）")
     p.add_argument("-R", "--reference", action="store_true",
                    help="给每个组合带上两倍窗口的参照基准（每个组合慢近一倍）")
+    # 注意不能占用 -t：它已经是 --table-only 了。代价模型这三个原样透传给 cachesim。
+    p.add_argument("--hit-time", default=DEFAULT_HIT_TIME, type=float, metavar="N",
+                   help="命中时的访问代价，单位周期，支持小数（默认 %(default)s）")
+    p.add_argument("-B", "--burst-base", default=DEFAULT_BURST_BASE, type=float, metavar="N",
+                   help="一次 4B 突发传输的代价，单位周期（默认 %(default)s）")
+    p.add_argument("-I", "--burst-inc", default=DEFAULT_BURST_INC, type=float, metavar="N",
+                   help="每多传 4B 增加的代价，单位周期（默认 %(default)s）")
     p.add_argument("--timeout", type=int, default=1800,
                    help="单个组合的超时秒数（默认 %(default)s）")
     p.add_argument("-n", "--dry-run", action="store_true",
@@ -410,6 +442,10 @@ def main():
     trace = Path(args.trace).resolve()
     if not check_preconditions(cachesim, trace):
         return 2
+
+    # 代价模型原样透传给每个 cachesim 子进程，所有组合共用同一套代价参数
+    cost_args = ["-t", str(args.hit_time),
+                 "-B", str(args.burst_base), "-I", str(args.burst_inc)]
 
     try:
         sizes = parse_dimension(args.size, parse_size, "容量")
@@ -459,9 +495,9 @@ def main():
     if args.dry_run:
         print("\n(这是 --dry-run，不执行)\n")
         for size, block, assoc, window in combos:
-            print("  %s -i %s -s %d -b %d -a %d -K %d%s"
+            print("  %s -i %s -s %d -b %d -a %d -K %d%s %s"
                   % (cachesim, trace, size, block, assoc, window,
-                     " -R" if args.reference else ""))
+                     " -R" if args.reference else "", " ".join(cost_args)))
         print("\n共 %d 个组合，并发 %d" % (len(combos), args.jobs))
         return 0
 
@@ -474,6 +510,9 @@ def main():
 
     print("并发  : %d 个进程" % args.jobs)
     print("输出  : %s" % outdir)
+    print("代价  : 命中 %g，一次 4B 突发 %g，每多传 4B +%g 周期"
+          "（缺失代价 = 4B 基准 + (块大小/4 - 1) x 增量）"
+          % (args.hit_time, args.burst_base, args.burst_inc))
     print()
 
     runner = Runner(args.jobs, args.timeout)
@@ -500,7 +539,7 @@ def main():
     try:
         with ThreadPoolExecutor(max_workers=args.jobs) as pool:
             futures = [pool.submit(runner.run_one, c, cachesim, trace, raw_dir,
-                                   args.reference) for c in combos]
+                                   args.reference, cost_args) for c in combos]
             for fut in futures:
                 report(*fut.result())
     except KeyboardInterrupt:
@@ -526,6 +565,20 @@ def main():
                   % (best["size"], best["block"], best["assoc"], best["window"],
                      best["misses"], best["hit_rate"]))
             if best["unreliable"]:
+                print("        该组合的全相联基准缺失反而更多，基准不可信，"
+                      "Conflict 已按 0 处理，建议加大 -K 复核")
+
+            # AMAT 最小的未必是缺失最少的那个：块越大缺失代价越高，
+            # “多缺几次但每次更便宜”有时反而更划算，所以单独列一条。
+            best_amat = min(rows, key=lambda r: (r["amat"], r["size"], r["block"]))
+            amat_rate = (best_amat["misses"] / best_amat["accesses"]
+                         if best_amat["accesses"] else 0.0)
+            print("AMAT 最小: 容量 %d 块大小 %d 相联度 %d 窗口 %d —— "
+                  "AMAT %.2f 周期 = 命中 %g + %.4f x %.2f"
+                  % (best_amat["size"], best_amat["block"], best_amat["assoc"],
+                     best_amat["window"], best_amat["amat"],
+                     args.hit_time, amat_rate, best_amat["miss_penalty"]))
+            if best_amat["unreliable"]:
                 print("        该组合的全相联基准缺失反而更多，基准不可信，"
                       "Conflict 已按 0 处理，建议加大 -K 复核")
 

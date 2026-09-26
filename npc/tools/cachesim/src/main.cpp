@@ -19,11 +19,16 @@ static void usage(const char *prog) {
     printf("                     越大越接近最优，0 表示不看未来、退回纯 LRU（默认 64）\n");
     printf("  -R, --reference    额外跑一个两倍窗口的参照，用来估计基准精度\n");
     printf("                     默认关（要多花约四成时间），需要看精度时再打开\n");
+    printf("  -t, --hit-time N   命中时的访问代价，单位周期，支持小数（默认 1）\n");
+    printf("  -B, --burst-base N 一次 4B 突发传输的代价，单位周期（默认 10）\n");
+    printf("  -I, --burst-inc N  每多传 4B 增加的代价，单位周期（默认 2）\n");
+    printf("                     缺失代价 = burst-base + (块大小/4 - 1) x burst-inc\n");
     printf("  -h, --help         显示本帮助\n");
 }
 
 // 打印单个配置的分析结果
-static void print_report(const CacheConfig &cfg, const AnalysisResult &r) {
+static void print_report(const CacheConfig &cfg, const AnalyzeOptions &aopt,
+                         const AnalysisResult &r) {
     const CacheStats &st = r.stats;
     const MissBreakdown &mb = r.miss;
     const uint64_t miss_total = mb.total();
@@ -72,6 +77,23 @@ static void print_report(const CacheConfig &cfg, const AnalysisResult &r) {
                "可以估计当前窗口离 OPT 下界还有多远）\n");
     }
 
+    // 访存代价模型。三个代价都是命令行给的，不是从 RTL 量出来的；这里把它们
+    // 和块大小、缺失率一起列出来，方便核对 AMAT 是怎么算出来的。
+    const double miss_rate = st.accesses ? (double)st.misses / st.accesses : 0.0;
+    printf("\n  访存代价模型 (代价单位: 周期，均由命令行给定):\n");
+    printf("    命中访问代价        : %g\n", aopt.hit_time);
+    printf("    4B 突发基准代价     : %g\n", aopt.burst_base);
+    printf("    每多 4B 增加代价    : %g\n", aopt.burst_inc);
+    printf("    块大小              : %lu B，即 %lu 次 4B 传输\n",
+           (unsigned long)cfg.block_size, (unsigned long)r.transfers);
+    printf("    缺失代价            : %g + (%lu - 1) x %g = %.2f\n",
+           aopt.burst_base, (unsigned long)r.transfers,
+           aopt.burst_inc, r.miss_penalty);
+    printf("    缺失率              : %lu / %lu = %.4f\n",
+           (unsigned long)st.misses, (unsigned long)st.accesses, miss_rate);
+    printf("    AMAT                : %.2f + %.4f x %.2f = %.2f 周期\n",
+           (double)aopt.hit_time, miss_rate, r.miss_penalty, r.amat);
+
     // 边解压边仿真是交织的，没法低开销地拆开，所以只报总耗时。
     // 其中读并解压 trace 那部分是固定的，跟窗口大小和 cache 配置都无关。
     printf("\n  耗时: %lu ms（含从 bzcat 读取并解压 trace 的时间）\n",
@@ -101,6 +123,9 @@ int main(int argc, char *argv[]) {
         {"opt-window", required_argument, NULL, 'K'},
         {"reference",    no_argument, NULL, 'R'},
         {"no-reference", no_argument, NULL, 'r'},
+        {"hit-time",   required_argument, NULL, 't'},
+        {"burst-base", required_argument, NULL, 'B'},
+        {"burst-inc",  required_argument, NULL, 'I'},
         {"help",  no_argument,       NULL, 'h'},
         {0, 0, 0, 0}
     };
@@ -108,7 +133,7 @@ int main(int argc, char *argv[]) {
     AnalyzeOptions aopt;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "i:s:b:a:K:Rrh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "i:s:b:a:K:Rrt:B:I:h", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'i':
             input = optarg;
@@ -137,6 +162,15 @@ int main(int argc, char *argv[]) {
             break;
         case 'r':
             aopt.reference = false;
+            break;
+        case 't':
+            aopt.hit_time = strtod(optarg, NULL);
+            break;
+        case 'B':
+            aopt.burst_base = strtod(optarg, NULL);
+            break;
+        case 'I':
+            aopt.burst_inc = strtod(optarg, NULL);
             break;
         case 'h':
             usage(argv[0]);
@@ -168,6 +202,6 @@ int main(int argc, char *argv[]) {
 
     printf("trace: %s，共 %lu 次取指\n\n", input.c_str(),
            (unsigned long)r.stats.accesses);
-    print_report(cfg, r);
+    print_report(cfg, aopt, r);
     return 0;
 }

@@ -69,6 +69,14 @@ struct AnalyzeOptions {
     // 默认关闭：它要多花约四成仿真时间（窗口缓冲和索引都翻倍），调参阶段用不上，
     // 等选定配置后再用 -R 打开看精度即可。opt_window 为 0 时参照无意义，会自动跳过。
     bool reference = false;
+
+    // ---- 访存代价模型（单位：周期），只用来推 AMAT，与 RTL 实测无关 ----
+    // 总线是 4B 一次的突发传输：第一次传 4B 花 burst_base，之后每多传 4B 再多花
+    // burst_inc。于是块越大，缺失时要传的次数越多、单次缺失也越贵。
+    // 三个都是浮点，方便按实测的纳秒折算成周期（比如 1.5 个周期）。
+    double hit_time   = 1.0;    // 命中时的访问代价
+    double burst_base = 10.0;   // 一次 4B 突发传输的代价
+    double burst_inc  = 2.0;    // 每多传 4B 增加的代价
 };
 
 // ========== cache 仿真 ==========
@@ -134,6 +142,11 @@ struct AnalysisResult {
     // 分析总耗时（毫秒）。边解压边仿真是交织在一起的，低开销地拆开做不到，
     // 所以这里只报总数；其中包含从 bzcat 读并解压 trace 的时间。
     uint64_t      elapsed_ms = 0;
+
+    // ---- 由 AnalyzeOptions 里的代价模型推出来的（同样不涉及 RTL 实测周期）----
+    uint64_t      transfers = 0;       // 块大小相当于几次 4B 传输
+    double        miss_penalty = 0.0;  // 单次缺失的代价
+    double        amat = 0.0;          // 平均访存时间 = 命中代价 + 缺失率 × 缺失代价
 };
 
 // 分析指定配置。内部边解压边喂 cache，只遍历一遍 trace，不把 trace 存下来。

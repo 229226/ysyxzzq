@@ -291,6 +291,18 @@ bool analyze(const std::string &path, const CacheConfig &cfg, const AnalyzeOptio
     out.elapsed_ms = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
                          std::chrono::steady_clock::now() - t_begin).count();
 
+    // ---- 访存代价模型 ----
+    // 总线按 4B 一次突发：传一个块要 block_size/4 次，第一次花 burst_base，
+    // 之后每多一次再加 burst_inc。所以块越大，单次缺失越贵。
+    out.transfers = cfg.block_size / 4;
+    out.miss_penalty = opt.burst_base;
+    if (out.transfers > 0)
+        out.miss_penalty += (double)(out.transfers - 1) * opt.burst_inc;
+
+    const double miss_rate = out.stats.accesses
+                           ? (double)out.stats.misses / out.stats.accesses : 0.0;
+    out.amat = opt.hit_time + miss_rate * out.miss_penalty;
+
     return true;
 }
 

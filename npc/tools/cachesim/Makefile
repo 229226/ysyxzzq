@@ -16,6 +16,12 @@ ASSOC  ?= 1
 WINDOW ?= 256
 REF    ?=
 
+# 访存代价模型（单位：周期）。总线按 4B 一次突发，所以
+#   缺失代价 = BURST_BASE + (块大小/4 - 1) x BURST_INC
+HIT_TIME   ?= 3     # 命中时的访问代价
+BURST_BASE ?= 49.78    # 一次 4B 突发传输的代价
+BURST_INC  ?= 14.37     # 每多传 4B 增加的代价
+
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
@@ -32,9 +38,11 @@ $(BUILD):
 #   make run WINDOW=256          前瞻窗口调大，全相联基准更接近最优
 #   make run WINDOW=0            退回纯 LRU 基准
 #   make run REF=-R              额外跑两倍窗口的参照，估计基准精度
+#   make run HIT_TIME=2 BURST_BASE=20 BURST_INC=4    调访存代价模型
 #   make run TRACE=/path/to/other.bin.bz2
 run: $(TARGET)
-	./$(TARGET) -i $(TRACE) -s $(SIZE) -b $(BLOCK) -a $(ASSOC) -K $(WINDOW) $(REF)
+	./$(TARGET) -i $(TRACE) -s $(SIZE) -b $(BLOCK) -a $(ASSOC) -K $(WINDOW) $(REF) \
+		-t $(HIT_TIME) -B $(BURST_BASE) -I $(BURST_INC)
 
 # 扫一组配置做对比：多核并行跑，汇总成表格 + CSV（实现见 sweep.py）。
 # 默认网格 512~16K × 16/32/64B 块 × 1/2/4 路，跑到 ../../result/cachesim/<时间戳>/ 下
