@@ -183,6 +183,8 @@ module ysyx_25080209_CLINT_AXI4 #(ADDR_WID = 32, DATA_WID = 32)(
 assign w_fin = 1;
 assign r_fin = 1;
 
+assign io_slave_rlast = 1;
+
 reg [DATA_WID*2-1:0] mtime;
 always @(posedge clk) begin
     mtime <= 0;

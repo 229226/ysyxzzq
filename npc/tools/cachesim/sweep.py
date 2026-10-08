@@ -42,9 +42,9 @@ DEFAULT_TRACE = SCRIPT_DIR.parent.parent / "pctrace.bin.bz2"
 DEFAULT_OUTBASE = SCRIPT_DIR.parent.parent / "result" / "cachesim"
 
 # 与内置 run_sweep() 的网格一致（main.cpp:88-90），脚本可以直接当作它的并行替代
-DEFAULT_SIZES = "32:256"
-DEFAULT_BLOCKS = "4:256"
-DEFAULT_ASSOCS = "1:64"
+DEFAULT_SIZES = "64"
+DEFAULT_BLOCKS = "4:64"
+DEFAULT_ASSOCS = "1:16"
 DEFAULT_WINDOWS = "256"
 
 # 访存代价模型（单位：周期），跟上面几个网格默认值一样，改这里就能改默认行为。

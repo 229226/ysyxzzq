@@ -12,6 +12,9 @@ AM_SRCS := riscv/ysyxsoc/start.S\
            platform/dummy/vme.c \
            platform/dummy/mpe.c
 
+CFLAGS	  += -falign-functions=16
+CFLAGS	  += -falign-jumps=16
+# CFLAGS	  += -falign-loops=16 #可能由于块太小，带不来性能提升
 CFLAGS    += -fdata-sections -ffunction-sections
 CFLAGS    += -I$(AM_HOME)/am/src/riscv/ysyxsoc/include
 LDSCRIPTS += $(AM_HOME)/scripts/ysyxsoclinker.ld

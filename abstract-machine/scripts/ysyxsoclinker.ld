@@ -14,13 +14,13 @@ SECTIONS {
     .start :{
         *(entry)
         *(FSBL)
-        . = ALIGN(8);
+        . = ALIGN(4);
     } > flash
 
     .SSBL :{
         _SSBL_sVMA = .;
         *(SSBL)
-        . = ALIGN(8);
+        . = ALIGN(4);
         _SSBL_eVMA = .;
     } > sdram AT> flash
 
@@ -30,7 +30,7 @@ SECTIONS {
         _text_sVMA = .;
         *(.text*)
         *(.rodata*)
-        . = ALIGN(8);
+        . = ALIGN(4);
         _text_eVMA = .;
     } > sdram AT> flash
 
@@ -40,7 +40,7 @@ SECTIONS {
         _data_sVMA = .;
         *(.data*)
         *(.sdata*)
-        . = ALIGN(8);
+        . = ALIGN(4);
         _data_eVMA = .;
     } > sdram AT> flash
 
@@ -50,7 +50,7 @@ SECTIONS {
         *(.bss*)
         *(.sbss*)
         *(.scommon)
-        . = ALIGN(8);
+        . = ALIGN(4);
     } > sdram
 
     _heap_start = .;
