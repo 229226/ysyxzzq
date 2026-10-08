@@ -7,9 +7,13 @@ module WBU_test #(
     input  wire rst,
 
     // 所有输入信号（加 _in 后缀）
+    input  wire [DATA_WID-1:0]  IFU_pc_in,
     input  wire [2:0]           IDU_wreg_sw_in,
     input  wire                 IDU_csr_w_sw_in,
     input  wire [DATA_WID-1:0]  IDU_imm_in,
+    input  wire [1:0]           IDU_pc_sw_in,
+    input  wire                 IDU_ecall_in,
+    input  wire                 IDU_mret_in,
     input  wire [DATA_WID-1:0]  EXU_out_in,
     input  wire [DATA_WID-1:0]  IFU_snpc_in,
     input  wire [DATA_WID-1:0]  LSU_rdata_in,
@@ -19,9 +23,12 @@ module WBU_test #(
     input  wire [DATA_WID-1:0]  CSR_wreg_in,
     input  wire [DATA_WID-1:0]  CSR_wrs1_in,
     input  wire [DATA_WID-1:0]  CSR_wzimm_in,
+    input  wire [DATA_WID-1:0]  CSR_mepc_in,
+    input  wire [DATA_WID-1:0]  CSR_mtvec_in,
     input  wire                 LSU_valid_in,
 
     // 采样后的输出（加 _sampled 后缀）
+    output wire [DATA_WID-1:0]  WBU_npc_sampled,
     output wire [DATA_WID-1:0]  WBU_reg_wdata_sampled,
     output wire [DATA_WID-1:0]  WBU_csr_wdata_sampled,
     output wire                 WBU_reg_wen_sampled,
@@ -31,9 +38,13 @@ module WBU_test #(
 );
 
     // ---- 输入采样寄存器 ----
+    reg [DATA_WID-1:0]  IFU_pc;
     reg [2:0]           IDU_wreg_sw;
     reg                 IDU_csr_w_sw;
     reg [DATA_WID-1:0]  IDU_imm;
+    reg [1:0]           IDU_pc_sw;
+    reg                 IDU_ecall;
+    reg                 IDU_mret;
     reg [DATA_WID-1:0]  EXU_out;
     reg [DATA_WID-1:0]  IFU_snpc;
     reg [DATA_WID-1:0]  LSU_rdata;
@@ -43,13 +54,19 @@ module WBU_test #(
     reg [DATA_WID-1:0]  CSR_wreg;
     reg [DATA_WID-1:0]  CSR_wrs1;
     reg [DATA_WID-1:0]  CSR_wzimm;
+    reg [DATA_WID-1:0]  CSR_mepc;
+    reg [DATA_WID-1:0]  CSR_mtvec;
     reg                 LSU_valid;
 
     always @(posedge clock or posedge rst) begin
         if (rst) begin
+            IFU_pc       <= 0;
             IDU_wreg_sw  <= 0;
             IDU_csr_w_sw <= 0;
             IDU_imm      <= 0;
+            IDU_pc_sw    <= 0;
+            IDU_ecall    <= 0;
+            IDU_mret     <= 0;
             EXU_out      <= 0;
             IFU_snpc     <= 0;
             LSU_rdata    <= 0;
@@ -59,11 +76,17 @@ module WBU_test #(
             CSR_wreg     <= 0;
             CSR_wrs1     <= 0;
             CSR_wzimm    <= 0;
+            CSR_mepc     <= 0;
+            CSR_mtvec    <= 0;
             LSU_valid    <= 0;
         end else begin
+            IFU_pc       <= IFU_pc_in;
             IDU_wreg_sw  <= IDU_wreg_sw_in;
             IDU_csr_w_sw <= IDU_csr_w_sw_in;
             IDU_imm      <= IDU_imm_in;
+            IDU_pc_sw    <= IDU_pc_sw_in;
+            IDU_ecall    <= IDU_ecall_in;
+            IDU_mret     <= IDU_mret_in;
             EXU_out      <= EXU_out_in;
             IFU_snpc     <= IFU_snpc_in;
             LSU_rdata    <= LSU_rdata_in;
@@ -73,11 +96,14 @@ module WBU_test #(
             CSR_wreg     <= CSR_wreg_in;
             CSR_wrs1     <= CSR_wrs1_in;
             CSR_wzimm    <= CSR_wzimm_in;
+            CSR_mepc     <= CSR_mepc_in;
+            CSR_mtvec    <= CSR_mtvec_in;
             LSU_valid    <= LSU_valid_in;
         end
     end
 
     // ---- 子模块实例化 ----
+    wire [DATA_WID-1:0] WBU_npc;
     wire [DATA_WID-1:0] WBU_reg_wdata;
     wire [DATA_WID-1:0] WBU_csr_wdata;
     wire                WBU_reg_wen;
@@ -90,9 +116,14 @@ module WBU_test #(
     ) u_WBU (
         .clk            (clock),
         .rst            (rst),
+        .IFU_pc         (IFU_pc),
+        .WBU_npc        (WBU_npc),
         .IDU_wreg_sw    (IDU_wreg_sw),
         .IDU_csr_w_sw   (IDU_csr_w_sw),
         .IDU_imm        (IDU_imm),
+        .IDU_pc_sw      (IDU_pc_sw),
+        .IDU_ecall      (IDU_ecall),
+        .IDU_mret       (IDU_mret),
         .EXU_out        (EXU_out),
         .IFU_snpc       (IFU_snpc),
         .LSU_rdata      (LSU_rdata),
@@ -102,6 +133,8 @@ module WBU_test #(
         .CSR_wreg       (CSR_wreg),
         .CSR_wrs1       (CSR_wrs1),
         .CSR_wzimm      (CSR_wzimm),
+        .CSR_mepc       (CSR_mepc),
+        .CSR_mtvec      (CSR_mtvec),
         .WBU_reg_wdata  (WBU_reg_wdata),
         .WBU_csr_wdata  (WBU_csr_wdata),
         .WBU_reg_wen    (WBU_reg_wen),
@@ -112,6 +145,7 @@ module WBU_test #(
     );
 
     // ---- 输出采样寄存器 ----
+    reg [DATA_WID-1:0] WBU_npc_reg;
     reg [DATA_WID-1:0] WBU_reg_wdata_reg;
     reg [DATA_WID-1:0] WBU_csr_wdata_reg;
     reg                WBU_reg_wen_reg;
@@ -121,6 +155,7 @@ module WBU_test #(
 
     always @(posedge clock or posedge rst) begin
         if (rst) begin
+            WBU_npc_reg       <= 0;
             WBU_reg_wdata_reg <= 0;
             WBU_csr_wdata_reg <= 0;
             WBU_reg_wen_reg   <= 0;
@@ -128,6 +163,7 @@ module WBU_test #(
             WBU_csr_ren_reg   <= 0;
             WBU_ready_reg     <= 0;
         end else begin
+            WBU_npc_reg       <= WBU_npc;
             WBU_reg_wdata_reg <= WBU_reg_wdata;
             WBU_csr_wdata_reg <= WBU_csr_wdata;
             WBU_reg_wen_reg   <= WBU_reg_wen;
@@ -138,6 +174,7 @@ module WBU_test #(
     end
 
     // ---- 采样输出赋值 ----
+    assign WBU_npc_sampled       = WBU_npc_reg;
     assign WBU_reg_wdata_sampled = WBU_reg_wdata_reg;
     assign WBU_csr_wdata_sampled = WBU_csr_wdata_reg;
     assign WBU_reg_wen_sampled   = WBU_reg_wen_reg;

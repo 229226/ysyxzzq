@@ -11,7 +11,6 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
   input [ADDR_WID-1:0] EXU_raddr,
   input [ADDR_WID-1:0] EXU_waddr,
   input [DATA_WID-1:0] EXU_wdata,
-  input [ADDR_WID-1:0] EXU_npc,
 
   // 来自 EXU 的透传控制
   input   EXU_reg_wen,
@@ -23,13 +22,13 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
   input WBU_ready,
 
   // 输出
-  output reg [ADDR_WID-1:0] LSU_npc,
   output reg [DATA_WID-1:0] LSU_rdata,
   output LSU_reg_wen,
   output LSU_csr_wen,
   output LSU_csr_ren,
   output reg LSU_ready,
   output reg LSU_valid,
+  output LSU_AXI_err,
 
   // ========== AXI4 接口（未修改） ==========
   input 		io_master_awready,
@@ -398,9 +397,9 @@ module ysyx_25080209_LSU #(ADDR_WID = 32, DATA_WID = 32)(
   // ========== 响应错误处理 ==========
   always @(*) begin
     if((bresp != 0) || (rresp != 0))
-      LSU_npc = 0;
+      LSU_AXI_err = 1;
     else
-      LSU_npc = EXU_npc;
+      LSU_AXI_err = 0;
   end
 
   // ========== 透传控制信号 ==========

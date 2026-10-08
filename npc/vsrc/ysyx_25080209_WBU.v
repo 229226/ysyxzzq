@@ -1,10 +1,17 @@
 module ysyx_25080209_WBU #(DATA_WID = 32)(
     input clk, rst,
 
+    // 来自 IFU 的数据
+    input [DATA_WID-1:0] IFU_pc,
+    output [DATA_WID-1:0] WBU_npc,
+
     // 来自 IDU 的控制信号
     input [2:0]         IDU_wreg_sw,
     input               IDU_csr_w_sw,
     input [DATA_WID-1:0] IDU_imm,
+    // 用于控制PC的更新
+    input [1:0] IDU_pc_sw,
+    input IDU_ecall,IDU_mret,
 
     // 来自 EXU
     input [DATA_WID-1:0] EXU_out,
@@ -17,11 +24,14 @@ module ysyx_25080209_WBU #(DATA_WID = 32)(
     input                LSU_reg_wen,
     input                LSU_csr_wen,
     input                LSU_csr_ren,
+    input                LSU_AXI_err,
 
     // 来自 CSR 模块
     input [DATA_WID-1:0] CSR_wreg,
     input [DATA_WID-1:0] CSR_wrs1,
     input [DATA_WID-1:0] CSR_wzimm,
+    // 用于控制PC的更新
+    input [DATA_WID-1:0] CSR_mepc,CSR_mtvec,
 
     // 输出到寄存器文件和 CSR
     output [DATA_WID-1:0] WBU_reg_wdata,
@@ -57,6 +67,29 @@ module ysyx_25080209_WBU #(DATA_WID = 32)(
             default: WBU_ready = 1;
         endcase
     end
+
+    // ========== PC 更新逻辑 ==========
+    wire branch;
+    assign branch = EXU_out[0];
+    wire [DATA_WID-1:0] bnpc;
+    assign bnpc = branch ? (IDU_imm + IFU_pc) : IFU_snpc;
+
+    wire [DATA_WID-1:0] pc_next_1;
+    wire [DATA_WID-1:0] pc_next_2;
+    MuxKeyWithDefault #(4, 2, 32) Mux_pc_wdata1 (pc_next_1, IDU_pc_sw, 32'b0, {
+        2'b00, IFU_snpc,
+        2'b01, EXU_out,
+        2'b10, bnpc,
+        2'b11, IFU_pc
+    });
+
+    MuxKeyWithDefault #(3, 2, 32) Mux_pc_wdata (pc_next_2, {IDU_ecall, IDU_mret}, 32'b0, {
+        2'b00, pc_next_1,
+        2'b01, CSR_mepc,
+        2'b10, CSR_mtvec
+    });
+
+    assign WBU_npc = LSU_AXI_err ? 0 : pc_next_2;
 
     // ========== 寄存器写使能（在状态转换时锁存） ==========
     always @(*) begin

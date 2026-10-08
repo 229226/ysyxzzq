@@ -101,6 +101,7 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
     });
 
     // ========== ALU opcode ==========
+    //store和load以及其它默认为加
     reg [3:0] ALU_opcode_comb;
     always @(*) begin
         casez ({IFU_instr[31:25], func3, opcode})
@@ -132,6 +133,7 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
     end
 
     // ========== ALU operand 1 select ==========
+    //store和load默认为rs1
     wire ALU_op1_comb;
     MuxKeyWithDefault #(2, 7, 1) Mux_pc_rs1 (ALU_op1_comb, opcode, 1'b0, {
         7'b0010111, 1'b1,   // auipc
@@ -139,6 +141,7 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
     });
 
     // ========== ALU operand 2 select ==========
+    //store和load默认为imm
     wire ALU_op2_comb;
     MuxKeyWithDefault #(2, 7, 1) Mux_rs2_imm (ALU_op2_comb, opcode, 1'b0, {
         7'b1100011, 1'b1,   // branch

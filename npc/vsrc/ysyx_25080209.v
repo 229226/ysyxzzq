@@ -85,7 +85,7 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
 
     // ---- IDU 输出 ----
     wire [31:0] IDU_imm;
-    wire [3:0]  IDU_ALU_opcode;
+    wire [3:0] IDU_ALU_opcode;
     wire        IDU_ALU_op1;
     wire        IDU_ALU_op2;
     wire [1:0]  IDU_pc_sw;
@@ -104,17 +104,17 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
 
     // ---- EXU 输出 ----
     wire [31:0] EXU_out;
-    wire [31:0] EXU_pc_next;
     wire        EXU_reg_wen, EXU_csr_wen, EXU_csr_ren;
     wire        EXU_ready, EXU_valid;
 
     // ---- LSU 输出 ----
-    wire [31:0] LSU_npc;
     wire [31:0] LSU_rdata;
     wire        LSU_reg_wen, LSU_csr_wen, LSU_csr_ren;
     wire        LSU_ready, LSU_valid;
+    wire        LSU_AXI_err;
 
     // ---- WBU 输出 ----
+    wire [31:0] WBU_npc;
     wire [31:0] WBU_reg_wdata;
     wire [31:0] WBU_csr_wdata;
     wire        WBU_reg_wen, WBU_csr_wen, WBU_csr_ren;
@@ -136,7 +136,7 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
     ysyx_25080209_IFU IFU (
         .clk           (clk),
         .rst           (rst),
-        .EXU_npc       (LSU_npc),          
+        .EXU_npc       (WBU_npc),
         .IFU_pc        (IFU_pc),
         .IFU_snpc      (IFU_snpc),
         .IFU_ins       (IFU_ins),
@@ -215,20 +215,13 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
         .IDU_ALU_op1    (IDU_ALU_op1),
         .IDU_ALU_op2    (IDU_ALU_op2),
         .IDU_ALU_opcode (IDU_ALU_opcode),
-        .IDU_pc_sw      (IDU_pc_sw),
-        .IDU_ecall      (IDU_ecall),
-        .IDU_mret       (IDU_mret),
         .IDU_reg_wen    (IDU_reg_wen),
         .IDU_csr_wen    (IDU_csr_wen),
         .IDU_csr_ren    (IDU_csr_ren),
         .IFU_pc         (IFU_pc),
-        .IFU_snpc       (IFU_snpc),
-        .CSR_mtvec      (CSR_mtvec),
-        .CSR_mepc       (CSR_mepc),
         .LSU_ready      (LSU_ready),
         .IDU_valid      (IDU_valid),
         .EXU_out        (EXU_out),
-        .EXU_pc_next    (EXU_pc_next),
         .EXU_reg_wen    (EXU_reg_wen),
         .EXU_csr_wen    (EXU_csr_wen),
         .EXU_csr_ren    (EXU_csr_ren),
@@ -247,19 +240,18 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
         .EXU_raddr      (EXU_out),
         .EXU_waddr      (EXU_out),
         .EXU_wdata      (RF_rdata2),
-        .EXU_npc        (EXU_pc_next),
         .EXU_reg_wen    (EXU_reg_wen),
         .EXU_csr_wen    (EXU_csr_wen),
         .EXU_csr_ren    (EXU_csr_ren),
         .EXU_valid      (EXU_valid),
         .WBU_ready      (WBU_ready),
-        .LSU_npc        (LSU_npc),
         .LSU_rdata      (LSU_rdata),
         .LSU_reg_wen    (LSU_reg_wen),
         .LSU_csr_wen    (LSU_csr_wen),
         .LSU_csr_ren    (LSU_csr_ren),
         .LSU_ready      (LSU_ready),
         .LSU_valid      (LSU_valid),
+        .LSU_AXI_err    (LSU_AXI_err),
         // AXI4 master 1
         .io_master_awready (io_master1_awready),
         .io_master_awvalid (io_master1_awvalid),
@@ -296,18 +288,26 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
     ysyx_25080209_WBU WBU (
         .clk            (clk),
         .rst            (rst),
+        .IFU_pc         (IFU_pc),
+        .WBU_npc        (WBU_npc),
         .IDU_wreg_sw    (IDU_wreg_sw),
         .IDU_csr_w_sw   (IDU_csr_w_sw),
         .IDU_imm        (IDU_imm),
+        .IDU_pc_sw      (IDU_pc_sw),
+        .IDU_ecall      (IDU_ecall),
+        .IDU_mret       (IDU_mret),
         .EXU_out        (EXU_out),
         .IFU_snpc       (IFU_snpc),
         .LSU_rdata      (LSU_rdata),
         .LSU_reg_wen    (LSU_reg_wen),
         .LSU_csr_wen    (LSU_csr_wen),
         .LSU_csr_ren    (LSU_csr_ren),
+        .LSU_AXI_err    (LSU_AXI_err),
         .CSR_wreg       (CSR_rdata),
         .CSR_wrs1       (RF_rdata1),
         .CSR_wzimm      (IDU_csr_zimm),
+        .CSR_mepc       (CSR_mepc),
+        .CSR_mtvec      (CSR_mtvec),
         .LSU_valid      (LSU_valid),
         .WBU_reg_wdata  (WBU_reg_wdata),
         .WBU_csr_wdata  (WBU_csr_wdata),

@@ -15,7 +15,6 @@ module LSU_test #(
     input  wire [ADDR_WID-1:0]  EXU_raddr_in,
     input  wire [ADDR_WID-1:0]  EXU_waddr_in,
     input  wire [DATA_WID-1:0]  EXU_wdata_in,
-    input  wire [ADDR_WID-1:0]  EXU_npc_in,
     input  wire                 EXU_reg_wen_in,
     input  wire                 EXU_csr_wen_in,
     input  wire                 EXU_csr_ren_in,
@@ -36,7 +35,6 @@ module LSU_test #(
     input  wire [3:0]           io_master_rid_in,
 
     // ---- 采样后的输出（加 _sampled 后缀） ----
-    output wire [ADDR_WID-1:0]  LSU_npc_sampled,
     output wire [DATA_WID-1:0]  LSU_rdata_sampled,
     output wire                 LSU_reg_wen_sampled,
     output wire                 LSU_csr_wen_sampled,
@@ -77,7 +75,6 @@ module LSU_test #(
     reg [ADDR_WID-1:0]  EXU_raddr;
     reg [ADDR_WID-1:0]  EXU_waddr;
     reg [DATA_WID-1:0]  EXU_wdata;
-    reg [ADDR_WID-1:0]  EXU_npc;
     reg                 EXU_reg_wen;
     reg                 EXU_csr_wen;
     reg                 EXU_csr_ren;
@@ -104,7 +101,6 @@ module LSU_test #(
             EXU_raddr        <= 0;
             EXU_waddr        <= 0;
             EXU_wdata        <= 0;
-            EXU_npc          <= 0;
             EXU_reg_wen      <= 0;
             EXU_csr_wen      <= 0;
             EXU_csr_ren      <= 0;
@@ -129,7 +125,6 @@ module LSU_test #(
             EXU_raddr        <= EXU_raddr_in;
             EXU_waddr        <= EXU_waddr_in;
             EXU_wdata        <= EXU_wdata_in;
-            EXU_npc          <= EXU_npc_in;
             EXU_reg_wen      <= EXU_reg_wen_in;
             EXU_csr_wen      <= EXU_csr_wen_in;
             EXU_csr_ren      <= EXU_csr_ren_in;
@@ -150,7 +145,6 @@ module LSU_test #(
     end
 
     // ---- 子模块实例化 ----
-    wire [ADDR_WID-1:0] LSU_npc;
     wire [DATA_WID-1:0] LSU_rdata;
     wire                LSU_reg_wen;
     wire                LSU_csr_wen;
@@ -189,13 +183,11 @@ module LSU_test #(
         .EXU_raddr              (EXU_raddr),
         .EXU_waddr              (EXU_waddr),
         .EXU_wdata              (EXU_wdata),
-        .EXU_npc                (EXU_npc),
         .EXU_reg_wen            (EXU_reg_wen),
         .EXU_csr_wen            (EXU_csr_wen),
         .EXU_csr_ren            (EXU_csr_ren),
         .EXU_valid              (EXU_valid),
         .WBU_ready              (WBU_ready),
-        .LSU_npc                (LSU_npc),
         .LSU_rdata              (LSU_rdata),
         .LSU_reg_wen            (LSU_reg_wen),
         .LSU_csr_wen            (LSU_csr_wen),
@@ -234,7 +226,6 @@ module LSU_test #(
     );
 
     // ---- 输出采样寄存器 ----
-    reg [ADDR_WID-1:0] LSU_npc_reg;
     reg [DATA_WID-1:0] LSU_rdata_reg;
     reg                LSU_reg_wen_reg;
     reg                LSU_csr_wen_reg;
@@ -262,7 +253,6 @@ module LSU_test #(
 
     always @(posedge clock or posedge rst) begin
         if (rst) begin
-            LSU_npc_reg          <= 0;
             LSU_rdata_reg        <= 0;
             LSU_reg_wen_reg      <= 0;
             LSU_csr_wen_reg      <= 0;
@@ -288,7 +278,6 @@ module LSU_test #(
             io_master_arburst_reg <= 0;
             io_master_rready_reg  <= 0;
         end else begin
-            LSU_npc_reg          <= LSU_npc;
             LSU_rdata_reg        <= LSU_rdata;
             LSU_reg_wen_reg      <= LSU_reg_wen;
             LSU_csr_wen_reg      <= LSU_csr_wen;
@@ -317,7 +306,6 @@ module LSU_test #(
     end
 
     // ---- 采样输出赋值 ----
-    assign LSU_npc_sampled          = LSU_npc_reg;
     assign LSU_rdata_sampled        = LSU_rdata_reg;
     assign LSU_reg_wen_sampled      = LSU_reg_wen_reg;
     assign LSU_csr_wen_sampled      = LSU_csr_wen_reg;
