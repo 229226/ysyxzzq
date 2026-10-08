@@ -10,14 +10,17 @@ module IDU_test #(
     // 所有输入信号（加 _in 后缀）
     input  wire                 IFU_valid_in,
     input  wire [DATA_WID-1:0]  IFU_instr_in,
+    input  wire [DATA_WID-1:0]  IFU_pc_in,
+    input  wire [DATA_WID-1:0]  IDU_rs1_in,
+    input  wire [DATA_WID-1:0]  IDU_rs2_in,
     input  wire                 EXU_ready_in,
 
     // 采样后的输出（加 _sampled 后缀）
     output wire                 IDU_ready_sampled,
     output wire                 IDU_valid_sampled,
-    output wire                 IDU_ALU_op1_sampled,
-    output wire                 IDU_ALU_op2_sampled,
-    output wire [3:0]           IDU_ALU_opcode_sampled,
+    output wire [DATA_WID-1:0]  IDU_alu_in1_sampled,
+    output wire [DATA_WID-1:0]  IDU_alu_in2_sampled,
+    output wire [13:0]          IDU_ALU_opcode_sampled,
     output wire [DATA_WID-1:0]  IDU_imm_sampled,
     output wire [1:0]           IDU_pc_sw_sampled,
     output wire [RADDR_WID-1:0] IDU_reg_raddr1_sampled,
@@ -40,16 +43,25 @@ module IDU_test #(
     // ---- 输入采样寄存器 ----
     reg                 IFU_valid;
     reg [DATA_WID-1:0]  IFU_instr;
+    reg [DATA_WID-1:0]  IFU_pc;
+    reg [DATA_WID-1:0]  IDU_rs1;
+    reg [DATA_WID-1:0]  IDU_rs2;
     reg                 EXU_ready;
 
     always @(posedge clock or posedge rst) begin
         if (rst) begin
             IFU_valid <= 0;
             IFU_instr <= 0;
+            IFU_pc    <= 0;
+            IDU_rs1   <= 0;
+            IDU_rs2   <= 0;
             EXU_ready <= 0;
         end else begin
             IFU_valid <= IFU_valid_in;
             IFU_instr <= IFU_instr_in;
+            IFU_pc    <= IFU_pc_in;
+            IDU_rs1   <= IDU_rs1_in;
+            IDU_rs2   <= IDU_rs2_in;
             EXU_ready <= EXU_ready_in;
         end
     end
@@ -57,9 +69,9 @@ module IDU_test #(
     // ---- 子模块实例化 ----
     wire                 IDU_ready;
     wire                 IDU_valid;
-    wire                 IDU_ALU_op1;
-    wire                 IDU_ALU_op2;
-    wire [3:0]           IDU_ALU_opcode;
+    wire [DATA_WID-1:0]  IDU_alu_in1;
+    wire [DATA_WID-1:0]  IDU_alu_in2;
+    wire [13:0]          IDU_ALU_opcode;
     wire [DATA_WID-1:0]  IDU_imm;
     wire [1:0]           IDU_pc_sw;
     wire [RADDR_WID-1:0] IDU_reg_raddr1;
@@ -87,10 +99,13 @@ module IDU_test #(
         .IFU_valid        (IFU_valid),
         .IDU_ready        (IDU_ready),
         .IFU_instr        (IFU_instr),
+        .IFU_pc           (IFU_pc),
+        .IDU_rs1          (IDU_rs1),
+        .IDU_rs2          (IDU_rs2),
         .EXU_ready        (EXU_ready),
         .IDU_valid        (IDU_valid),
-        .IDU_ALU_op1      (IDU_ALU_op1),
-        .IDU_ALU_op2      (IDU_ALU_op2),
+        .IDU_alu_in1      (IDU_alu_in1),
+        .IDU_alu_in2      (IDU_alu_in2),
         .IDU_ALU_opcode   (IDU_ALU_opcode),
         .IDU_imm          (IDU_imm),
         .IDU_pc_sw        (IDU_pc_sw),
@@ -114,9 +129,9 @@ module IDU_test #(
     // ---- 输出采样寄存器 ----
     reg                 IDU_ready_reg;
     reg                 IDU_valid_reg;
-    reg                 IDU_ALU_op1_reg;
-    reg                 IDU_ALU_op2_reg;
-    reg [3:0]           IDU_ALU_opcode_reg;
+    reg [DATA_WID-1:0]  IDU_alu_in1_reg;
+    reg [DATA_WID-1:0]  IDU_alu_in2_reg;
+    reg [13:0]          IDU_ALU_opcode_reg;
     reg [DATA_WID-1:0]  IDU_imm_reg;
     reg [1:0]           IDU_pc_sw_reg;
     reg [RADDR_WID-1:0] IDU_reg_raddr1_reg;
@@ -139,8 +154,8 @@ module IDU_test #(
         if (rst) begin
             IDU_ready_reg      <= 0;
             IDU_valid_reg      <= 0;
-            IDU_ALU_op1_reg    <= 0;
-            IDU_ALU_op2_reg    <= 0;
+            IDU_alu_in1_reg    <= 0;
+            IDU_alu_in2_reg    <= 0;
             IDU_ALU_opcode_reg <= 0;
             IDU_imm_reg        <= 0;
             IDU_pc_sw_reg      <= 0;
@@ -162,8 +177,8 @@ module IDU_test #(
         end else begin
             IDU_ready_reg      <= IDU_ready;
             IDU_valid_reg      <= IDU_valid;
-            IDU_ALU_op1_reg    <= IDU_ALU_op1;
-            IDU_ALU_op2_reg    <= IDU_ALU_op2;
+            IDU_alu_in1_reg    <= IDU_alu_in1;
+            IDU_alu_in2_reg    <= IDU_alu_in2;
             IDU_ALU_opcode_reg <= IDU_ALU_opcode;
             IDU_imm_reg        <= IDU_imm;
             IDU_pc_sw_reg      <= IDU_pc_sw;
@@ -188,8 +203,8 @@ module IDU_test #(
     // ---- 采样输出赋值 ----
     assign IDU_ready_sampled      = IDU_ready_reg;
     assign IDU_valid_sampled      = IDU_valid_reg;
-    assign IDU_ALU_op1_sampled    = IDU_ALU_op1_reg;
-    assign IDU_ALU_op2_sampled    = IDU_ALU_op2_reg;
+    assign IDU_alu_in1_sampled    = IDU_alu_in1_reg;
+    assign IDU_alu_in2_sampled    = IDU_alu_in2_reg;
     assign IDU_ALU_opcode_sampled = IDU_ALU_opcode_reg;
     assign IDU_imm_sampled        = IDU_imm_reg;
     assign IDU_pc_sw_sampled      = IDU_pc_sw_reg;

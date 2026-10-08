@@ -86,8 +86,7 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
     // ---- IDU 输出 ----
     wire [31:0] IDU_imm;
     wire [13:0] IDU_ALU_opcode;
-    wire        IDU_ALU_op1;
-    wire        IDU_ALU_op2;
+    wire [31:0] IDU_alu_in1, IDU_alu_in2;
     wire [1:0]  IDU_pc_sw;
     wire [2:0]  IDU_wreg_sw;
     wire        IDU_reg_wen;
@@ -180,9 +179,12 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
         .rst            (rst),
         .IFU_valid      (IFU_valid),
         .IFU_instr      (IFU_ins),
+        .IFU_pc         (IFU_pc),
+        .IDU_rs1        (RF_rdata1),
+        .IDU_rs2        (RF_rdata2),
+        .IDU_alu_in1    (IDU_alu_in1),
+        .IDU_alu_in2    (IDU_alu_in2),
         .IDU_imm        (IDU_imm),
-        .IDU_ALU_op1    (IDU_ALU_op1),
-        .IDU_ALU_op2    (IDU_ALU_op2),
         .IDU_ALU_opcode (IDU_ALU_opcode),
         .IDU_pc_sw      (IDU_pc_sw),
         .IDU_reg_wen    (IDU_reg_wen),
@@ -209,16 +211,12 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
     ysyx_25080209_EXU EXU (
         .clk            (clk),
         .rst            (rst),
-        .IDU_rs1        (RF_rdata1),
-        .IDU_rs2        (RF_rdata2),
-        .IDU_imm        (IDU_imm),
-        .IDU_ALU_op1    (IDU_ALU_op1),
-        .IDU_ALU_op2    (IDU_ALU_op2),
+        .IDU_alu_in1    (IDU_alu_in1),
+        .IDU_alu_in2    (IDU_alu_in2),
         .IDU_ALU_opcode (IDU_ALU_opcode),
         .IDU_reg_wen    (IDU_reg_wen),
         .IDU_csr_wen    (IDU_csr_wen),
         .IDU_csr_ren    (IDU_csr_ren),
-        .IFU_pc         (IFU_pc),
         .LSU_ready      (LSU_ready),
         .IDU_valid      (IDU_valid),
         .EXU_out        (EXU_out),

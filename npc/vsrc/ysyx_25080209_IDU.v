@@ -7,21 +7,24 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
 
     // IFU input
     input [DATA_WID-1:0]    IFU_instr,
+    input [DATA_WID-1:0]    IFU_pc,
+    input [DATA_WID-1:0]    IDU_rs1,
+    input [DATA_WID-1:0]    IDU_rs2,
     
     // Handshake with EXU
     input                   EXU_ready,
     output reg              IDU_valid,   // 组合逻辑输出（不寄存）
 
     // output to EXU
-    output reg              IDU_ALU_op1,
-    output reg              IDU_ALU_op2,
     output reg [13:0]       IDU_ALU_opcode,
     output reg [DATA_WID-1:0] IDU_imm,
     output reg [1:0]        IDU_pc_sw,
+    output reg [DATA_WID-1:0] IDU_alu_in1,
+    output reg [DATA_WID-1:0] IDU_alu_in2,
 
     // output to Register
-    output reg [RADDR_WID-1:0] IDU_reg_raddr1,
-    output reg [RADDR_WID-1:0] IDU_reg_raddr2,
+    output [RADDR_WID-1:0]   IDU_reg_raddr1,
+    output [RADDR_WID-1:0]   IDU_reg_raddr2,
     output reg               IDU_reg_wen,
     output reg [RADDR_WID-1:0] IDU_reg_waddr,
     output reg [2:0]         IDU_wreg_sw,
@@ -258,16 +261,17 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
         endcase
     end
 
+    assign IDU_reg_raddr1 = reg_raddr1_comb;
+    assign IDU_reg_raddr2 = reg_raddr2_comb;
+
     // ========== 所有输出（除 valid/ready）寄存器化 ==========
     always @(posedge clk) begin
         if (rst) begin
-            IDU_ALU_op1    <= 0;
-            IDU_ALU_op2    <= 0;
+            IDU_alu_in1    <= 0;
+            IDU_alu_in2    <= 0;
             IDU_ALU_opcode <= 0;
             IDU_imm        <= 0;
             IDU_pc_sw      <= 0;
-            IDU_reg_raddr1 <= 0;
-            IDU_reg_raddr2 <= 0;
             IDU_reg_wen    <= 0;
             IDU_reg_waddr  <= 0;
             IDU_wreg_sw    <= 0;
@@ -282,13 +286,11 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
             IDU_ecall      <= 0;
             IDU_mret       <= 0;
         end else begin
-            IDU_ALU_op1    <= ALU_op1_comb;
-            IDU_ALU_op2    <= ALU_op2_comb;
+            IDU_alu_in1    <= ALU_op1_comb ? IFU_pc : IDU_rs1;
+            IDU_alu_in2    <= ALU_op2_comb ? IDU_rs2 : imm_comb;
             IDU_ALU_opcode <= ALU_opcode_comb;
             IDU_imm        <= imm_comb;
             IDU_pc_sw      <= pc_sw_comb;
-            IDU_reg_raddr1 <= reg_raddr1_comb;
-            IDU_reg_raddr2 <= reg_raddr2_comb;
             IDU_reg_wen    <= reg_wen_comb;
             IDU_reg_waddr  <= reg_waddr_comb;
             IDU_wreg_sw    <= wreg_sw_comb;

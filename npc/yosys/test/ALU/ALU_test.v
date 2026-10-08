@@ -9,7 +9,7 @@ module ALU_test #(
     // 所有输入信号（加 _in 后缀）
     input  wire [DATA_WID-1:0]  rs1_in,
     input  wire [DATA_WID-1:0]  rs2_in,
-    input  wire [3:0]           alu_op_in,
+    input  wire [13:0]          alu_op_in,
 
     // 采样后的输出（加 _sampled 后缀）
     output wire [DATA_WID-1:0]  alu_out_sampled
@@ -18,7 +18,7 @@ module ALU_test #(
     // ---- 输入采样寄存器 ----
     reg [DATA_WID-1:0]  rs1;
     reg [DATA_WID-1:0]  rs2;
-    reg [3:0]           alu_op;
+    reg [13:0]          alu_op;
 
     always @(posedge clock or posedge rst) begin
         if (rst) begin

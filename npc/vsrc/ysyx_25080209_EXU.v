@@ -3,18 +3,12 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
 
     // 来自 IDU
     input                IDU_valid,
-    input [DATA_WID-1:0] IDU_rs1,
-    input [DATA_WID-1:0] IDU_rs2,
-    input [DATA_WID-1:0] IDU_imm,
-    input                IDU_ALU_op1,
-    input                IDU_ALU_op2,
+    input [DATA_WID-1:0] IDU_alu_in1,
+    input [DATA_WID-1:0] IDU_alu_in2,
     input [13:0]         IDU_ALU_opcode,
     input                IDU_reg_wen,
     input                IDU_csr_wen,
     input                IDU_csr_ren,
-
-    // 来自 IFU
-    input [DATA_WID-1:0] IFU_pc,
 
     // 来自 LSU
     input                LSU_ready,
@@ -63,16 +57,11 @@ module ysyx_25080209_EXU #(DATA_WID = 32)(
         endcase
     end
 
-    // ========== ALU 数据选择 ==========
-    wire [DATA_WID-1:0] alu_in1, alu_in2;
-    assign alu_in1 = IDU_ALU_op1 ? IFU_pc : IDU_rs1;
-    assign alu_in2 = IDU_ALU_op2 ? IDU_rs2 : IDU_imm;
-
     // ========== ALU 实例 ==========
     wire [DATA_WID-1:0] alu_out;
     ysyx_25080209_ALU u_ysyx_25080209_ALU(
-        .rs1    (alu_in1),
-        .rs2    (alu_in2),
+        .rs1    (IDU_alu_in1),
+        .rs2    (IDU_alu_in2),
         .alu_op (IDU_ALU_opcode),
         .alu_out(alu_out)
     );
