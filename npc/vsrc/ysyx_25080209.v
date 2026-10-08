@@ -85,7 +85,7 @@ module ysyx_25080209 #(DATA_WID=32,ADDR_WID=32)(
 
     // ---- IDU 输出 ----
     wire [31:0] IDU_imm;
-    wire [3:0] IDU_ALU_opcode;
+    wire [13:0] IDU_ALU_opcode;
     wire        IDU_ALU_op1;
     wire        IDU_ALU_op2;
     wire [1:0]  IDU_pc_sw;

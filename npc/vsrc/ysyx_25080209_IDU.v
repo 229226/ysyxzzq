@@ -15,7 +15,7 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
     // output to EXU
     output reg              IDU_ALU_op1,
     output reg              IDU_ALU_op2,
-    output reg [3:0]        IDU_ALU_opcode,
+    output reg [13:0]       IDU_ALU_opcode,
     output reg [DATA_WID-1:0] IDU_imm,
     output reg [1:0]        IDU_pc_sw,
 
@@ -102,33 +102,33 @@ module ysyx_25080209_IDU#(DATA_WID = 32, RADDR_WID = 4)(
 
     // ========== ALU opcode ==========
     //store和load以及其它默认为加
-    reg [3:0] ALU_opcode_comb;
+    reg [13:0] ALU_opcode_comb;
     always @(*) begin
         casez ({IFU_instr[31:25], func3, opcode})
-            17'b???????_000_1100011: ALU_opcode_comb = 4'b1000; // beq
-            17'b???????_001_1100011: ALU_opcode_comb = 4'b1001; // bne
-            17'b???????_100_1100011: ALU_opcode_comb = 4'b1010; // blt
-            17'b???????_101_1100011: ALU_opcode_comb = 4'b1100; // bge
-            17'b???????_110_1100011: ALU_opcode_comb = 4'b1011; // bltu
-            17'b???????_111_1100011: ALU_opcode_comb = 4'b1101; // bgeu
-            17'b???????_010_0010011: ALU_opcode_comb = 4'b1010; // slti
-            17'b???????_011_0010011: ALU_opcode_comb = 4'b1011; // sltu
-            17'b???????_100_0010011: ALU_opcode_comb = 4'b0100; // xori
-            17'b???????_110_0010011: ALU_opcode_comb = 4'b0011; // ori
-            17'b???????_111_0010011: ALU_opcode_comb = 4'b0010; // andi
-            17'b0000000_001_0010011: ALU_opcode_comb = 4'b0101; // slli
-            17'b0000000_101_0010011: ALU_opcode_comb = 4'b0110; // srli
-            17'b0100000_101_0010011: ALU_opcode_comb = 4'b0111; // srai
-            17'b0100000_000_0110011: ALU_opcode_comb = 4'b0001; // sub
-            17'b0000000_001_0110011: ALU_opcode_comb = 4'b0101; // sll
-            17'b0000000_010_0110011: ALU_opcode_comb = 4'b1010; // slt
-            17'b0000000_011_0110011: ALU_opcode_comb = 4'b1011; // sltu
-            17'b0000000_100_0110011: ALU_opcode_comb = 4'b0100; // xor
-            17'b0000000_101_0110011: ALU_opcode_comb = 4'b0110; // srl
-            17'b0100000_101_0110011: ALU_opcode_comb = 4'b0111; // sra
-            17'b0000000_110_0110011: ALU_opcode_comb = 4'b0011; // or
-            17'b0000000_111_0110011: ALU_opcode_comb = 4'b0010; // and
-            default: ALU_opcode_comb = 4'b0;
+            17'b???????_000_1100011: ALU_opcode_comb = 14'b00000100000000; // beq
+            17'b???????_001_1100011: ALU_opcode_comb = 14'b00001000000000; // bne
+            17'b???????_100_1100011: ALU_opcode_comb = 14'b00010000000000; // blt
+            17'b???????_101_1100011: ALU_opcode_comb = 14'b01000000000000; // bge
+            17'b???????_110_1100011: ALU_opcode_comb = 14'b00100000000000; // bltu
+            17'b???????_111_1100011: ALU_opcode_comb = 14'b10000000000000; // bgeu
+            17'b???????_010_0010011: ALU_opcode_comb = 14'b00010000000000; // slti
+            17'b???????_011_0010011: ALU_opcode_comb = 14'b00100000000000; // sltu
+            17'b???????_100_0010011: ALU_opcode_comb = 14'b00000000010000; // xori
+            17'b???????_110_0010011: ALU_opcode_comb = 14'b00000000001000; // ori
+            17'b???????_111_0010011: ALU_opcode_comb = 14'b00000000000100; // andi
+            17'b0000000_001_0010011: ALU_opcode_comb = 14'b00000000100000; // slli
+            17'b0000000_101_0010011: ALU_opcode_comb = 14'b00000001000000; // srli
+            17'b0100000_101_0010011: ALU_opcode_comb = 14'b00000010000000; // srai
+            17'b0100000_000_0110011: ALU_opcode_comb = 14'b00000000000010; // sub
+            17'b0000000_001_0110011: ALU_opcode_comb = 14'b00000000100000; // sll
+            17'b0000000_010_0110011: ALU_opcode_comb = 14'b00010000000000; // slt
+            17'b0000000_011_0110011: ALU_opcode_comb = 14'b00100000000000; // sltu
+            17'b0000000_100_0110011: ALU_opcode_comb = 14'b00000000010000; // xor
+            17'b0000000_101_0110011: ALU_opcode_comb = 14'b00000001000000; // srl
+            17'b0100000_101_0110011: ALU_opcode_comb = 14'b00000010000000; // sra
+            17'b0000000_110_0110011: ALU_opcode_comb = 14'b00000000001000; // or
+            17'b0000000_111_0110011: ALU_opcode_comb = 14'b00000000000100; // and
+            default: ALU_opcode_comb = 14'b1;
         endcase
     end
 
