@@ -54,13 +54,14 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
     }
 
     char *p = out;
-    char *end = out + n - 1; // 为 '\0' 保留一个位置
+    size_t rem = n - 1; // 为 '\0' 保留一个位置；rem 不用指针减法，避免 n=(size_t)-1 时回绕
     int total = 0;
 
-    while (*fmt && p < end) {
+    while (*fmt) {
         if (*fmt != '%') {
-            *p++ = *fmt++;
+            if (rem) { *p++ = *fmt; rem--; }
             total++;
+            fmt++;
             continue;
         }
 
@@ -69,35 +70,34 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
 
         switch (*fmt) {
         case '%':
-            *p++ = '%';
+            if (rem) { *p++ = '%'; rem--; }
             total++;
             break;
         case 'c': {
             char c = (char)va_arg(ap, int);
-            *p++ = c;
+            if (rem) { *p++ = c; rem--; }
             total++;
             break;
         }
         case 's': {
             const char *s = va_arg(ap, const char *);
             if (s == NULL) s = "(null)";
-            while (*s && p < end) {
-                *p++ = *s++;
+            while (*s) {
+                if (rem) { *p++ = *s; rem--; }
                 total++;
+                s++;
             }
-            // 计算剩余未写入的字符数
-            while (*s++) total++;
             break;
         }
         case 'd': {
             int num = va_arg(ap, int);
             // 处理负数
             if (num < 0) {
-                if (p < end) *p++ = '-';
+                if (rem) { *p++ = '-'; rem--; }
                 num = -num;
                 total++;
             }
-            
+
             char tmp[12];
             char *t = tmp + sizeof(tmp) - 1;
             *t = '\0';
@@ -110,12 +110,11 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
                 }
             }
             // 写入输出缓冲区
-            while (*t && p < end) {
-                *p++ = *t++;
+            while (*t) {
+                if (rem) { *p++ = *t; rem--; }
                 total++;
+                t++;
             }
-            // 计算剩余
-            while (*t++) total++; 
             break;
         }
         case 'x': {
@@ -132,53 +131,18 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
                     num >>= 4;
                 }
             }
-            while (*t && p < end) {
-                *p++ = *t++;
+            while (*t) {
+                if (rem) { *p++ = *t; rem--; }
                 total++;
+                t++;
             }
-            while (*t++) total++;
             break;
         }
         default:
             // 不支持的格式，直接输出
-            if (p < end) *p++ = *fmt;
+            if (rem) { *p++ = *fmt; rem--; }
             total++;
             break;
-        }
-        fmt++;
-    }
-
-    while (*fmt) {
-        if (*fmt != '%') {
-            total++;
-            fmt++;
-            continue;
-        }
-        fmt++; // 跳过 %
-        if (*fmt == '\0') break;
-        switch (*fmt) {
-        case '%': case 'c':
-            total++; break;
-        case 's': {
-            const char *s = va_arg(ap, const char *);
-            if (!s) s = "(null)";
-            while (*s++) total++;
-            break;
-        }
-        case 'd': {
-            int num = va_arg(ap, int);
-            if (num < 0) { total++; num = -num; }
-            if (num == 0) total++;
-            else while (num > 0) { total++; num /= 10; }
-            break;
-        }
-        case 'x': {
-            unsigned int num = va_arg(ap, unsigned int);
-            if (num == 0) total++;
-            else while (num > 0) { total++; num >>= 4; }
-            break;
-        }
-        default: total++; break;
         }
         fmt++;
     }

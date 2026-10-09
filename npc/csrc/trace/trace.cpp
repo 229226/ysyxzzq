@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include "ptrace.hpp"
 #include <cstdio>
+#include <string>
 
 #define ITRACE_BUFLEN 128
 #define ITRACE_RBLEN 20
@@ -48,10 +49,29 @@ void trace_printf(const char *format, ...) {
 
 void trace_write(const char *format,...){
     va_list args;
-    va_start(args, format);          
-    vfprintf(trace_file, format, args); 
+    va_start(args, format);
+    vfprintf(trace_file, format, args);
     fflush(trace_file);
     va_end(args);
+}
+
+// guest 程序经 UART 打印的原文，sim.cpp 结束仿真后从中解析 microbench 的耗时/得分
+static std::string g_uart_log;
+
+// uart16550 TX FIFO 每发出一个字符就经 DPI 调到这里
+// （见 ysyxSoC/perip/uart16550/rtl/uart_tfifo.v），上屏同时写入 npc.log
+extern "C" void uart_putchar(char ch){
+    fputc(ch, stdout);
+    fflush(stdout);
+    if(trace_file){
+        fputc(ch, trace_file);
+        fflush(trace_file);
+    }
+    g_uart_log += ch;
+}
+
+const std::string &uart_log(){
+    return g_uart_log;
 }
 
 void itrace_rb_add(char *str){

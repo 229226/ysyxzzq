@@ -9,6 +9,9 @@
 #include <iostream>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
 #include <string>
 #include <vector>
 
@@ -453,7 +456,7 @@ int sim_exec(int turns){
   }
 
   // ======== 性能表格 ========
-  // 按 npc/doc/NPC性能评估结果.xlsx 的列序登记 102 个字段，从 A 列起一一对齐。
+  // 按 npc/doc/NPC性能评估结果.xlsx 的列序登记 104 个字段，从 A 列起一一对齐。
   // 其中 A(commit)/B(说明)/F(综合频率)/G(综合面积) 仿真产不出来，占四个空位，
   // 复制脚本因此可以纯按位置搬，不用管从第几列开始。
   // 取值口径与上面报告里的原式逐项对应，只是这里为了不打扰报告代码，
@@ -605,6 +608,42 @@ int sim_exec(int turns){
     table_add("cache_avg_access",       "%.2f", ptrace.get_icache_avg_hit_time());
     table_add("cache_avg_miss_penalty", "%.2f", ptrace.get_icache_avg_miss_penalty());
     table_add("cache_amat",             "%.2f", ptrace.get_icache_amat());
+
+    // ---- CZ,DA microbench（从 guest 的 UART 输出里解析；跑的不是 microbench 就留空）----
+    // 耗时单位与一生一芯讲义一致：毫秒。得分即 bench.c 打印的 Marks。
+    {
+      const std::string &uart = uart_log();
+      auto find_ms = [&](const char *key, double &out) {
+        size_t p = uart.find(key);
+        if (p == std::string::npos) return false;
+        out = strtod(uart.c_str() + p + strlen(key), NULL);
+        return true;
+      };
+      double scored_ms = 0, total_ms = 0;
+      bool has_scored = find_ms("Scored time: ", scored_ms);
+      find_ms("Total  time: ", total_ms);
+      long marks = -1;
+      size_t mp = uart.find(" Marks");
+      if (mp != std::string::npos) {          // 从 " Marks" 往回抠出数字
+        size_t e = mp;
+        while (e > 0 && isspace((unsigned char)uart[e - 1])) e--;
+        size_t s = e;
+        while (s > 0 && isdigit((unsigned char)uart[s - 1])) s--;
+        if (s < e) marks = strtol(uart.c_str() + s, NULL, 10);
+      }
+
+      if (has_scored) {
+        trace_printf("\nptrace:microbench Scored time = %.3f ms, Total time = %.3f ms",
+                     scored_ms, total_ms);
+        if (marks >= 0) trace_printf(", Marks = %ld", marks);
+        trace_printf("\n");
+        table_add("mb_time_ms", "%.3f", scored_ms);
+      } else {
+        table_add("mb_time_ms", "%s", "");
+      }
+      if (marks >= 0) table_add("mb_marks", "%ld", marks);
+      else            table_add("mb_marks", "%s", "");
+    }
 
     table_write("./build/perf_table.csv");
   }

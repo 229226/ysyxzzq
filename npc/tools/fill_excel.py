@@ -7,8 +7,8 @@
 表格是两行等长的 CSV：第一行是字段名，第二行是对应的值。
 字段按位置搬过去，遇到模板独有的列（见 TEMPLATE_ONLY_COLS）则跳过，不做其他解析映射。
 
-A(commit)、B(说明)、F(综合频率)、G(综合面积)、H(IPS) 仿真产不出来，sim.cpp 会占
-空位，搬过来就是空的，填不填由你自己决定。
+A(commit)、B(说明)、F(综合频率)、G(综合面积) 仿真产不出来，sim.cpp 会占
+空位，搬过来就是空的，填不填由你自己决定；H(IPS) 由仿真直接产出。
 
 用法: python3 fill_excel.py <perf_table.csv> [excel_file]
 
@@ -21,8 +21,10 @@ import sys
 import os
 from openpyxl import load_workbook
 
-# 模板里有、CSV 里没有的字段（第一行的表头文本），写到这些列上时要跳过去
-TEMPLATE_ONLY_COLS = {'IPS'}
+# 模板里有、CSV 里没有的字段（第一行的表头文本），写到这些列上时要跳过去。
+# 目前为空：sim.cpp 的表格与模板逐列一一对应（IPS 也由仿真直接产出），
+# 只有模板以后再插入仿真产不出的列时才需要把表头名加回来。
+TEMPLATE_ONLY_COLS = set()
 
 
 def to_num(s):

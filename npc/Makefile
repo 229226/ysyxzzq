@@ -154,8 +154,11 @@ fill_excel:
 	@echo "Excel updated at $(EXCEL_FILE)"
 
 #进行perf仿真时需要开启NPC的TRACE功能以输出数据
+#microbench 跑完 train 后 sim.cpp 会把耗时/得分一并写进 perf_table.csv，
+#这里紧接着 fill_excel，一条 make perf 完成「跑分 + 填表」
 perf: sta
 	$(MAKE) -C $(NPC_HOME)/../am-kernels/benchmarks/microbench ARCH=riscv32e-npcsoc run mainargs=train
+	$(MAKE) fill_excel
 
 clean:
 	rm -rf $(BUILD_PATH)
